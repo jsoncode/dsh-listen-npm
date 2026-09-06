@@ -3,7 +3,7 @@
  *
  * 布局：头部（名称/版本/许可证/操作）→ 描述与链接 → 下载量卡片（突出显示：
  * 昨日/近7天/近30天/近一年 + 每日安装量柱状图）→ 基本信息 → dist-tags →
- * 依赖 → 版本列表 → README 摘要。
+ * 版本列表（固定高度滚动）→ README 摘要（Markdown 渲染）。
  */
 
 import { useState } from 'react'
@@ -11,6 +11,7 @@ import type { InfoResponse } from '../types.ts'
 import { t } from '../i18n.ts'
 import { fmtBytes, fmtCompact, fmtDate, fmtDateTime, fmtInt } from '../format.ts'
 import { DownloadChart } from './DownloadChart.tsx'
+import { Markdown } from './Markdown.tsx'
 
 export interface PackageDetailProps {
   /** info op 完整响应。 */
@@ -33,32 +34,12 @@ function Links({ res }: { res: InfoResponse }) {
   if (info.homepage) links.push({ label: t('homepage'), href: info.homepage })
   if (info.repository) links.push({ label: t('repository'), href: info.repository })
   if (info.bugs) links.push({ label: t('issues'), href: info.bugs })
-  if (info.latestDetail?.tarball) links.push({ label: t('tarball'), href: info.latestDetail.tarball })
   links.push({ label: t('npmPage'), href: npmPage })
   return (
     <div className="dshn-detail-links">
       {links.map((l) => (
         <a key={l.label + l.href} className="dshn-link" href={l.href} target="_blank" rel="noreferrer">{l.label} ↗</a>
       ))}
-    </div>
-  )
-}
-
-/** 依赖块（无依赖显示「无」）。 */
-function DepBlock({ title, deps }: { title: string; deps?: Record<string, string> }) {
-  const entries = deps ? Object.entries(deps) : []
-  return (
-    <div>
-      <div className="dshn-meta-key" style={{ textAlign: 'left', width: 'auto' }}>{title}</div>
-      {entries.length === 0
-        ? <div className="dshn-dep-list">{t('depsNone')}</div>
-        : (
-          <div className="dshn-dep-list">
-            {entries.map(([k, v]) => (
-              <code key={k}><b>{k}</b>@{v}</code>
-            ))}
-          </div>
-        )}
     </div>
   )
 }
@@ -165,38 +146,30 @@ export function PackageDetail({ res, watched, onWatch, watchBusy, notice }: Pack
         </div>
       ) : null}
 
-      {/* ── 依赖 ── */}
-      <div className="dshn-card">
-        <div className="dshn-card-title">{t('depsTitle')}</div>
-        <div className="dshn-meta" style={{ gridTemplateColumns: '1fr' }}>
-          <DepBlock title={t('depsRuntime')} deps={detail?.dependencies} />
-          <DepBlock title={t('depsPeer')} deps={detail?.peerDependencies} />
-          <DepBlock title={t('depsDev')} deps={detail?.devDependencies} />
-        </div>
-      </div>
-
-      {/* ── 版本列表 ── */}
+      {/* ── 版本列表（固定高度，过多版本在卡片内滚动）── */}
       <div className="dshn-card">
         <div className="dshn-card-title">{t('versionsTitle')}<span className="dshn-hint">{versionRows.length}</span></div>
         {versionRows.length === 0 ? (
           <div className="dshn-empty">{t('versionsEmpty')}</div>
         ) : (
-          <table className="dshn-table">
-            <thead>
-              <tr>
-                <th style={{ width: '30%' }}>version</th>
-                <th>{t('historyColTime')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {versionRows.map((v) => (
-                <tr key={v.version}>
-                  <td>{v.version}{v.latest ? <span className="dshn-chip dshn-chip-latest" style={{ marginLeft: 8 }}>{t('latestVersion')}</span> : null}</td>
-                  <td>{fmtDateTime(v.time)}</td>
+          <div className="dshn-table-scroll">
+            <table className="dshn-table">
+              <thead>
+                <tr>
+                  <th style={{ width: '30%' }}>version</th>
+                  <th>{t('historyColTime')}</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {versionRows.map((v) => (
+                  <tr key={v.version}>
+                    <td>{v.version}{v.latest ? <span className="dshn-chip dshn-chip-latest" style={{ marginLeft: 8 }}>{t('latestVersion')}</span> : null}</td>
+                    <td>{fmtDateTime(v.time)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
 
@@ -212,7 +185,9 @@ export function PackageDetail({ res, watched, onWatch, watchBusy, notice }: Pack
         </div>
         {info.readme ? (
           <div style={{ position: 'relative' }}>
-            <div className={'dshn-readme' + (readmeOpen ? ' dshn-readme-open' : '')}>{info.readme}</div>
+            <div className={'dshn-readme' + (readmeOpen ? ' dshn-readme-open' : '')}>
+              <Markdown text={info.readme} />
+            </div>
             {!readmeOpen ? <div className="dshn-readme-fade" /> : null}
           </div>
         ) : (

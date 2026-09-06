@@ -3,7 +3,8 @@
  *
  * - 顶部：添加输入框 + 立即刷新 + 自动刷新间隔说明；
  * - 列表项：包名（点击进查询 tab 看详情）、latest 版本、昨日/近7天下载量
- *   （与上个快照对比的趋势箭头）、新版本未读徽标、刷新失败原因、移除按钮；
+ *   （与上个快照对比的趋势箭头）、右侧近 7 天日安装量迷你柱状图（数据随
+ *   刷新响应返回，无额外请求）、新版本未读徽标、刷新失败原因、移除按钮；
  * - 打开 tab 时自动清除新版本未读标记（watchSeen op，footer 橙色胶囊随之消失）。
  */
 
@@ -12,6 +13,25 @@ import type { RunFn } from '../rpc.ts'
 import type { Poller, WatchEntryView } from '../poller.ts'
 import { t, tErr } from '../i18n.ts'
 import { fmtCompact, fmtInt, fmtRel } from '../format.ts'
+
+/** 迷你日安装量柱状图（近 7 天，随刷新更新；每根柱带原生 tooltip）。 */
+function MiniTrend({ daily }: { daily?: WatchEntryView['daily'] }) {
+  const data = daily || []
+  if (data.length === 0) return null
+  const max = Math.max(...data.map((p) => p.downloads), 1)
+  return (
+    <div className="dshn-trend" title={t('watchTrend')} aria-label={t('watchTrend')}>
+      {data.map((p, i) => (
+        <span
+          key={p.day}
+          className={'dshn-trend-bar' + (i === data.length - 1 ? ' dshn-trend-bar-last' : '')}
+          style={{ height: Math.max(10, Math.round((p.downloads / max) * 100)) + '%' }}
+          title={`${p.day} · ${fmtInt(p.downloads)}`}
+        />
+      ))}
+    </div>
+  )
+}
 
 export interface WatchTabProps {
   run: RunFn
@@ -139,6 +159,7 @@ export function WatchTab({ run, poller, onOpenDetail, refreshMinutes }: WatchTab
                 <span>{t('refreshedAt')} {fmtRel(w.lastCheckAt)}</span>
               </div>
             </div>
+            <MiniTrend daily={w.daily} />
             <div className="dshn-watch-ops">
               <button
                 type="button"

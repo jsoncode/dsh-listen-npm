@@ -4,9 +4,9 @@
   "author": "jsoncode",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com"
+    "url": "https://github.com/jsoncode/dsh-listen-npm/issues"
   },
-  "homepage": "https://github.com",
+  "homepage": "https://github.com/jsoncode/dsh-listen-npm",
   "description": "npm package monitor plugin (dual-face): query full npm package info with daily install counts, and watch your own packages for version / download changes. npm 包监控插件：查询 npm 包完整信息与每日安装量，监控列表自动跟踪版本与下载量变化。Bilingual UI (zh/en)",
   "type": "module",
   "packageManager": "pnpm@10.33.0",

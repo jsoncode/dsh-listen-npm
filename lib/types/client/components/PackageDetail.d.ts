@@ -3,7 +3,7 @@
  *
  * 布局：头部（名称/版本/许可证/操作）→ 描述与链接 → 下载量卡片（突出显示：
  * 昨日/近7天/近30天/近一年 + 每日安装量柱状图）→ 基本信息 → dist-tags →
- * 依赖 → 版本列表 → README 摘要。
+ * 版本列表（固定高度滚动）→ README 摘要（Markdown 渲染）。
  */
 import type { InfoResponse } from '../types.ts';
 export interface PackageDetailProps {

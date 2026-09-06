@@ -11,6 +11,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { runOp } from '../src/host/ops.ts'
+import { deriveRepoAndIssues } from '../src/host/npm.ts'
 import { EMPTY_STORE, loadStore, resolveStoreDir, resetStoreDirCache, saveStore } from '../src/host/store.ts'
 
 /** 模拟宿主 subprocess 服务：spawnSync + 文件描述符输出收集。 */
@@ -82,6 +83,20 @@ const fail = (msg) => { console.error('SMOKE FAIL: ' + msg); rmSync(dir, { recur
 const ok = (msg) => console.log('  OK ' + msg)
 
 const main = async () => {
+  // 0. repository / issues 推导纯函数（覆盖裸域名 bugs、shorthand 仓库、scp、mailto、gitlab）
+  const d1 = deriveRepoAndIssues({ url: 'github:jsoncode/dsh-listen-npm' }, { url: 'https://github.com' })
+  if (d1.repository !== 'https://github.com/jsoncode/dsh-listen-npm') fail('deriveRepoAndIssues shorthand repo: ' + String(d1.repository))
+  if (d1.bugs !== 'https://github.com/jsoncode/dsh-listen-npm/issues') fail('deriveRepoAndIssues bare bugs should derive issues: ' + String(d1.bugs))
+  const d2 = deriveRepoAndIssues({ url: 'git+https://github.com/vuejs/core.git' }, 'https://github.com/vuejs/core/issues')
+  if (d2.repository !== 'https://github.com/vuejs/core' || d2.bugs !== 'https://github.com/vuejs/core/issues') fail('deriveRepoAndIssues keep real issues url: ' + JSON.stringify(d2))
+  const d3 = deriveRepoAndIssues('git@github.com:u/r.git', { email: 'a@b.c' })
+  if (d3.repository !== 'https://github.com/u/r' || d3.bugs !== 'https://github.com/u/r/issues') fail('deriveRepoAndIssues scp+email: ' + JSON.stringify(d3))
+  const d4 = deriveRepoAndIssues(undefined, 'mailto:a@b.c')
+  if (d4.bugs !== undefined) fail('deriveRepoAndIssues mailto should be dropped: ' + String(d4.bugs))
+  const d5 = deriveRepoAndIssues('https://gitlab.com/u/r', 'https://gitlab.com/u/r')
+  if (d5.bugs !== 'https://gitlab.com/u/r/-/issues') fail('deriveRepoAndIssues gitlab homepage -> issues: ' + String(d5.bugs))
+  ok('issues 推导: bare-bugs / shorthand / scp / email / mailto / gitlab 全部正确')
+
   // 1. search
   const search = await runOp(deps, { op: 'search', text: 'vue', size: 3 })
   if (!search.ok || !Array.isArray(search.results) || search.results.length === 0) fail('search: ' + JSON.stringify(search).slice(0, 200))
@@ -92,7 +107,8 @@ const main = async () => {
   if (!info.ok) fail('info: ' + JSON.stringify(info).slice(0, 300))
   if (!Array.isArray(info.daily) || info.daily.length < 28) fail('info daily points: ' + (info.daily || []).length)
   if (!(info.points.day.downloads > 0)) fail('info points.day = ' + JSON.stringify(info.points.day))
-  ok(`info: ${info.info.name}@${info.info.latest} · daily=${info.daily.length}d · yesterday=${info.points.day.downloads} · week=${info.points.week.downloads} · year=${info.points.year.downloads}`)
+  if (info.info.bugs !== 'https://github.com/vuejs/core/issues') fail('info issues url: ' + String(info.info.bugs))
+  ok(`info: ${info.info.name}@${info.info.latest} · daily=${info.daily.length}d · yesterday=${info.points.day.downloads} · week=${info.points.week.downloads} · year=${info.points.year.downloads} · issues=${info.info.bugs}`)
 
   // 3. info（scoped 包）
   const scoped = await runOp(deps, { op: 'info', pkg: '@vue/runtime-core' })
@@ -108,7 +124,8 @@ const main = async () => {
   const add = await runOp(deps, { op: 'watchAdd', pkg: 'https://www.npmjs.com/package/left-pad' })
   if (!add.ok) fail('watchAdd: ' + JSON.stringify(add).slice(0, 300))
   if (add.entry.name !== 'left-pad') fail('watchAdd normalize failed: ' + add.entry.name)
-  ok(`watchAdd: ${add.entry.name}@${add.entry.lastVersion} · day=${add.entry.lastDay} · week=${add.entry.lastWeek}`)
+  if (!Array.isArray(add.entry.daily) || add.entry.daily.length === 0) fail('watchAdd daily missing: ' + JSON.stringify(add.entry.daily))
+  ok(`watchAdd: ${add.entry.name}@${add.entry.lastVersion} · day=${add.entry.lastDay} · week=${add.entry.lastWeek} · daily=${add.entry.daily.length}d`)
 
   // 6. watchAdd 重复
   const dup = await runOp(deps, { op: 'watchAdd', pkg: 'left-pad' })
@@ -124,9 +141,11 @@ const main = async () => {
   const entry = refresh.watch.find((w) => w.name === 'left-pad')
   const scopedEntry = refresh.watch.find((w) => w.name === '@vue/runtime-core')
   if (!entry || entry.error) fail('watchRefresh entry: ' + JSON.stringify(entry).slice(0, 300))
+  if (!Array.isArray(entry.daily) || entry.daily.length === 0) fail('watchRefresh daily missing: ' + JSON.stringify(entry.daily))
   if (!scopedEntry || scopedEntry.error || !(scopedEntry.lastDay > 0)) fail('watchRefresh scoped entry: ' + JSON.stringify(scopedEntry).slice(0, 300))
+  if (!Array.isArray(scopedEntry.daily) || scopedEntry.daily.length === 0) fail('watchRefresh scoped daily missing')
   if (refresh.changes.length !== 0) fail('watchRefresh unexpected changes: ' + JSON.stringify(refresh.changes))
-  ok(`watchRefresh: watch=${refresh.watch.length} · changes=0 · day=${entry.lastDay} · scoped day=${scopedEntry.lastDay}`)
+  ok(`watchRefresh: watch=${refresh.watch.length} · changes=0 · day=${entry.lastDay} · scoped day=${scopedEntry.lastDay} · daily=${entry.daily.length}/${scopedEntry.daily.length}d`)
 
   // 8. history（应有 init 快照）
   const history = await runOp(deps, { op: 'history', pkg: 'left-pad' })

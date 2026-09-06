@@ -62,6 +62,12 @@ function openStore(raw: string): NpmStoreData {
         lastWeek: typeof w.lastWeek === 'number' ? w.lastWeek : undefined,
         prevDay: typeof w.prevDay === 'number' ? w.prevDay : undefined,
         prevWeek: typeof w.prevWeek === 'number' ? w.prevWeek : undefined,
+        daily: Array.isArray(w.daily)
+          ? (w.daily as Array<Record<string, unknown>>)
+            .map((p) => ({ day: typeof (p as { day?: unknown }).day === 'string' ? String((p as { day: string }).day) : '', downloads: typeof (p as { downloads?: unknown }).downloads === 'number' ? Number((p as { downloads: number }).downloads) : 0 }))
+            .filter((p) => p.day.length > 0)
+            .slice(-14)
+          : undefined,
         hasNewVersion: w.hasNewVersion === true,
         error: typeof w.error === 'string' ? w.error : undefined,
       }))

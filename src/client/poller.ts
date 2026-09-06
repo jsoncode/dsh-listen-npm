@@ -9,6 +9,7 @@
  */
 
 import type { RunFn } from './rpc.ts'
+import type { DailyPoint } from './types.ts'
 import type { SummaryStore, WatchSummary } from './store.ts'
 import { tErr } from './i18n.ts'
 
@@ -22,6 +23,8 @@ export interface WatchEntryView {
   lastWeek?: number
   prevDay?: number
   prevWeek?: number
+  /** 近 7 天日粒度下载量（随刷新更新，供迷你柱状图）。 */
+  daily?: DailyPoint[]
   hasNewVersion?: boolean
   error?: string
 }

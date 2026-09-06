@@ -5,8 +5,10 @@
  * watchRefresh / watchSeen / history。
  *
  * 监控刷新策略（省请求）：
- * - 每个 watched 包一次轻量 dist-tags 请求（几百字节）；
- * - 昨日 / 近 7 天下载量走 point 批量接口（整个列表各 1 次请求）；
+ * - 每个 watched 包两次轻量请求：dist-tags（几百字节）+ downloads range/last-week；
+ * - 昨日 / 近 7 天下载量与监控列表迷你柱状图的日粒度序列都由 range 响应推导
+ *   （downloads 批量接口不支持 scoped 包，range 本就按包查询——scoped 包反而
+ *   从 3 次请求/包降到 2 次/包）；
  * - dist-tags.latest 与本地记录不同 → 版本变更：置 hasNewVersion + 追加快照。
  */
 import type { DailyPoint, DownloadPoint, NpmStoreData, OpRequest, OpResult, PackageInfo } from './types.ts';

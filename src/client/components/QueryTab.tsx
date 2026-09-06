@@ -141,6 +141,7 @@ export function QueryTab({ run, initialPkg, watchedNames, onWatchChanged }: Quer
       </div>
 
       {error ? <div className="dshn-err">{error}</div> : null}
+      {querying ? <div className="dshn-loading"><span className="dshn-spin" />{t('loading')}</div> : null}
       {!res && !querying && !error ? <div className="dshn-empty">{t('searchPickHint')}</div> : null}
       {res && res.ok && res.info ? (
         <PackageDetail

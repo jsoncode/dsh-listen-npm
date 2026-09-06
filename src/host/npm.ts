@@ -48,6 +48,78 @@ export function normalizePkgName(raw: string): string {
   return name.trim()
 }
 
+/** 识别主流托管平台（github / gitlab / gitee）的仓库网页地址，返回 { host, slug }。 */
+export function platformSlugOf(url: string): { host: string; slug: string } | undefined {
+  const m = url.match(/^https?:\/\/(?:www\.)?(github\.com|gitlab\.com|gitee\.com)\/([^/]+)\/([^/#?]+)/i)
+  return m === null ? undefined : { host: m[1].toLowerCase(), slug: m[2] + '/' + m[3].replace(/\.git$/, '') }
+}
+
+/** 平台仓库地址 → issues 页地址（gitlab 的 issues 挂在 /-/issues）。 */
+export function issuesUrlOfPlatform(host: string, slug: string): string {
+  return host === 'gitlab.com'
+    ? 'https://gitlab.com/' + slug + '/-/issues'
+    : 'https://' + host + '/' + slug + '/issues'
+}
+
+/**
+ * registry 文档的 repository / bugs 字段 → 仓库网页地址 + issues 跳转地址。
+ *
+ * repository 归一化常见非网页形态：git+ 前缀 / .git 后缀 / git:// 协议 /
+ * ssh://git@ / scp 形式（git@host:path）/ npm shorthand（github:owner/repo 等）。
+ *
+ * issues 推导规则：npm 的 bugs 常见形态是 { email } / mailto:（当链接用会唤起
+ * 邮件客户端），还有大量包把 bugs.url 填成仓库首页甚至裸域名（点了就是
+ * GitHub 首页）。因此：
+ * 1. 只接受 http(s) 形式的 bugs.url；
+ * 2. 托管平台链接统一校验/补全为 issues 页：已是 issues 页原样保留，
+ *    仓库首页补 /issues（gitlab 为 /-/issues），裸域名/仅组织名等定位不到
+ *    仓库的丢弃；
+ * 3. 非托管平台的自定义 tracker 原样保留；
+ * 4. 仍无可用链接时，从 repository 推导 issues 页。
+ */
+export function deriveRepoAndIssues(repoRaw: unknown, bugsRaw: unknown): { repository?: string; bugs?: string } {
+  let repository: string | undefined
+  const repoUrl = typeof repoRaw === 'string' ? repoRaw : repoRaw && typeof repoRaw === 'object' && typeof (repoRaw as { url?: unknown }).url === 'string' ? String((repoRaw as { url: string }).url) : ''
+  if (repoUrl) {
+    repository = repoUrl
+      .replace(/^git\+/, '')
+      .replace(/\.git$/, '')
+      .replace(/^git:\/\//, 'https://')
+      .replace(/^ssh:\/\/git@/, 'https://')
+      .replace(/^git@([^:/]+)[:/]/, 'https://$1/')
+  }
+  if (repository !== undefined) {
+    const sh = repository.match(/^(github|gitlab|gitee|bitbucket):([^/]+)\/([^/#?]+)$/i)
+    if (sh) {
+      const host = sh[1].toLowerCase() === 'bitbucket' ? 'bitbucket.org' : sh[1].toLowerCase() + '.com'
+      repository = 'https://' + host + '/' + sh[2] + '/' + sh[3]
+    }
+  }
+
+  const repoPlatform = repository !== undefined ? platformSlugOf(repository) : undefined
+  const bugsCandidate = typeof bugsRaw === 'string'
+    ? bugsRaw
+    : bugsRaw && typeof bugsRaw === 'object' && typeof (bugsRaw as { url?: unknown }).url === 'string'
+      ? String((bugsRaw as { url: string }).url)
+      : undefined
+  let bugs: string | undefined
+  if (bugsCandidate !== undefined && /^https?:\/\//i.test(bugsCandidate)) {
+    const slugHit = platformSlugOf(bugsCandidate)
+    const onPlatform = /^https?:\/\/(?:www\.)?(github\.com|gitlab\.com|gitee\.com)(\/|$)/i.test(bugsCandidate)
+    if (slugHit !== undefined) {
+      bugs = /\/(?:-\/)?issues(?:[/?#]|$)/i.test(bugsCandidate)
+        ? bugsCandidate
+        : issuesUrlOfPlatform(slugHit.host, slugHit.slug)
+    } else if (!onPlatform) {
+      bugs = bugsCandidate
+    }
+  }
+  if (bugs === undefined && repoPlatform !== undefined) {
+    bugs = issuesUrlOfPlatform(repoPlatform.host, repoPlatform.slug)
+  }
+  return { repository, bugs }
+}
+
 /** 包名合法性（npm rules 的宽松版：scope 可选，主体字符 [a-z0-9-._~]）。 */
 export function isValidPkgName(name: string): boolean {
   if (!name || name.length > 214) return false
@@ -198,16 +270,8 @@ export async function fetchPackageInfo(deps: NpmDeps, name: string): Promise<Ful
       ? String((authorRaw as { name: string }).name)
       : undefined
 
-  // repository：{ url } 或字符串 → 网页地址（github.com/... 去掉 git+ 前缀与 .git 后缀）。
-  const repoRaw = doc.repository
-  let repository: string | undefined
-  const repoUrl = typeof repoRaw === 'string' ? repoRaw : repoRaw && typeof repoRaw === 'object' && typeof (repoRaw as { url?: unknown }).url === 'string' ? String((repoRaw as { url: string }).url) : ''
-  if (repoUrl) {
-    repository = repoUrl.replace(/^git\+/, '').replace(/\.git$/, '').replace(/^git:\/\//, 'https://').replace(/^ssh:\/\/git@/, 'https://')
-  }
-
-  const bugsRaw = doc.bugs
-  const bugs = typeof bugsRaw === 'string' ? bugsRaw : bugsRaw && typeof bugsRaw === 'object' && typeof (bugsRaw as { url?: unknown }).url === 'string' ? String((bugsRaw as { url: string }).url) : undefined
+  // repository 网页地址与 issues 跳转地址（纯函数推导，规则见 deriveRepoAndIssues）。
+  const { repository, bugs } = deriveRepoAndIssues(doc.repository, doc.bugs)
 
   const readmeRaw = typeof doc.readme === 'string' ? doc.readme : ''
   const maintainers = Array.isArray(doc.maintainers)
@@ -252,11 +316,7 @@ export async function fetchPackageInfo(deps: NpmDeps, name: string): Promise<Ful
         publishTime: time[latest || ''] || undefined,
         fileCount: typeof latestDist.fileCount === 'number' ? latestDist.fileCount : undefined,
         unpackedSize: typeof latestDist.unpackedSize === 'number' ? latestDist.unpackedSize : undefined,
-        dependencies: strRecord(latestManifest.dependencies),
-        devDependencies: strRecord(latestManifest.devDependencies),
-        peerDependencies: strRecord(latestManifest.peerDependencies),
         engines: strRecord(latestManifest.engines),
-        tarball: typeof latestDist.tarball === 'string' ? latestDist.tarball : undefined,
         shasum: typeof latestDist.shasum === 'string' ? latestDist.shasum : undefined,
         npmUser: latestManifest._npmUser && typeof (latestManifest._npmUser as { name?: unknown }).name === 'string'
           ? String((latestManifest._npmUser as { name: string }).name)

@@ -30,6 +30,8 @@ export interface WatchEntry {
   prevDay?: number
   /** 上上个快照的近 7 天下载量。 */
   prevWeek?: number
+  /** 近 7 天日粒度下载量（随刷新更新，供监控列表迷你柱状图）。 */
+  daily?: DailyPoint[]
   /** 版本变更未读标记：刷新发现新版本后置位，watchSeen 清除。 */
   hasNewVersion?: boolean
   /** 最近一次刷新失败原因（成功后清除）。 */
@@ -104,11 +106,7 @@ export interface PackageInfo {
     publishTime?: string
     fileCount?: number
     unpackedSize?: number
-    dependencies?: Record<string, string>
-    devDependencies?: Record<string, string>
-    peerDependencies?: Record<string, string>
     engines?: Record<string, string>
-    tarball?: string
     shasum?: string
     npmUser?: string
   }

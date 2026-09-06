@@ -36,18 +36,20 @@ modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
     average line, and per-bar tooltips
   - Basic info: first publish, last update, latest publish (+publisher), total
     versions, unpacked size, file count, node engines, maintainers
-  - dist-tags chips, dependencies (deps / peer / dev), recent version list,
-    README excerpt
+  - dist-tags chips, recent version list (fixed-height scroll), README excerpt
+    (rendered as Markdown)
   - One-click **Watch** button
 - **Watch tab** — add/remove packages; each row shows the latest version (with
   a NEW badge when it changed), day/7-day downloads with trend vs the previous
-  snapshot, last-check time, and per-row refresh via the header button
+  snapshot, a mini bar chart of the last 7 days of daily installs, and the
+  last-check time
 - **History tab** — snapshot timeline per package (recorded on watch-add and
   version changes): time, version, day/week downloads, change type
 - **Background polling** — the poller runs decoupled from the modal; every
   `refreshMinutes` (host config, default 10) it refreshes the whole watch list
-  with 1 lightweight `dist-tags` request per package + 2 bulk download-count
-  requests total; new versions light up the amber footer badge until viewed
+  with 1 lightweight `dist-tags` request + 1 `range/last-week` request per
+  package (yesterday / 7-day totals and the mini chart's daily series are both
+  derived from it); new versions light up the amber footer badge until viewed
 - **Data files** — watch list and snapshots persist to
   `$DSH_HOME/dsh-listen-npm.json` (atomic writes, `.bak` on corruption)
 - **HTTP API** — the browser half talks to `/dsh-listen-npm/api`

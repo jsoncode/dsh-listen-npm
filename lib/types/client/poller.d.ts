@@ -8,6 +8,7 @@
  * 空闲不请求：无监控包或未到刷新间隔时 tick 直接短路。
  */
 import type { RunFn } from './rpc.ts';
+import type { DailyPoint } from './types.ts';
 import type { SummaryStore, WatchSummary } from './store.ts';
 /** 监控条目（宿主 WatchEntry 的客户端视图）。 */
 export interface WatchEntryView {
@@ -19,6 +20,8 @@ export interface WatchEntryView {
     lastWeek?: number;
     prevDay?: number;
     prevWeek?: number;
+    /** 近 7 天日粒度下载量（随刷新更新，供迷你柱状图）。 */
+    daily?: DailyPoint[];
     hasNewVersion?: boolean;
     error?: string;
 }

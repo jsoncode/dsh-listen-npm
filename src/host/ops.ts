@@ -5,14 +5,15 @@
  * watchRefresh / watchSeen / history。
  *
  * 监控刷新策略（省请求）：
- * - 每个 watched 包一次轻量 dist-tags 请求（几百字节）；
- * - 昨日 / 近 7 天下载量走 point 批量接口（整个列表各 1 次请求）；
+ * - 每个 watched 包两次轻量请求：dist-tags（几百字节）+ downloads range/last-week；
+ * - 昨日 / 近 7 天下载量与监控列表迷你柱状图的日粒度序列都由 range 响应推导
+ *   （downloads 批量接口不支持 scoped 包，range 本就按包查询——scoped 包反而
+ *   从 3 次请求/包降到 2 次/包）；
  * - dist-tags.latest 与本地记录不同 → 版本变更：置 hasNewVersion + 追加快照。
  */
 
 import {
   NpmError,
-  fetchBulkPoints,
   fetchDailyRange,
   fetchDistTags,
   fetchPackageInfo,
@@ -51,6 +52,14 @@ function pushSnapshot(store: NpmStoreData, name: string, snap: { latest: string;
   const list = Array.isArray(store.snapshots[name]) ? store.snapshots[name] : []
   list.unshift({ at: Date.now(), latest: snap.latest, day: snap.day, week: snap.week, note: snap.note })
   store.snapshots[name] = list.slice(0, SNAPSHOTS_LIMIT)
+}
+
+/** 由 range/last-week 响应推导监控数据：昨日 = 最后一天，近 7 天 = 7 天合计，daily = 日粒度序列。 */
+function entryDataFromRange(range: { downloads: DailyPoint[] }): { day: number; week: number; daily: DailyPoint[] } {
+  const daily = range.downloads
+  const day = daily.length > 0 ? daily[daily.length - 1].downloads : 0
+  const week = daily.reduce((acc, p) => acc + p.downloads, 0)
+  return { day, week, daily }
 }
 
 /* ── info：完整包信息 + 日粒度下载量 ───────────────────────────── */
@@ -118,12 +127,15 @@ async function opWatchAdd(deps: OpsDeps, rawPkg: string): Promise<{ watch: Watch
   // 验证包存在（dist-tags 极轻量），并取首次快照数据。
   const tags = await fetchDistTags(d, name)
   const latest = typeof tags.latest === 'string' ? tags.latest : ''
+  // 一次 range/last-week 同时得到昨日 / 近 7 天与日粒度序列（新包可能无数据：保持 0）。
   let day = 0
   let week = 0
+  let daily: DailyPoint[] | undefined
   try {
-    const [pDay, pWeek] = await Promise.all([fetchPoint(d, name, 'last-day'), fetchPoint(d, name, 'last-week')])
-    day = pDay.downloads
-    week = pWeek.downloads
+    const data = entryDataFromRange(await fetchDailyRange(d, name, 'last-week'))
+    day = data.day
+    week = data.week
+    daily = data.daily
   } catch { /* 新包可能无下载量数据：保持 0 */ }
   const entry: WatchEntry = {
     name,
@@ -132,6 +144,7 @@ async function opWatchAdd(deps: OpsDeps, rawPkg: string): Promise<{ watch: Watch
     lastVersion: latest,
     lastDay: day,
     lastWeek: week,
+    daily,
   }
   store.watch.push(entry)
   pushSnapshot(store, name, { latest, day, week, note: 'init' })
@@ -177,44 +190,35 @@ async function opWatchRefresh(deps: OpsDeps, rawPkg?: string): Promise<{ watch: 
   if (targets.length === 0) return { watch: store.watch.map((w) => ({ ...w })), changes, checkedAt }
 
   const d = npmDeps(deps)
-  const names = targets.map((w) => w.name)
-  // downloads 批量接口不支持 scoped 包：普通包走批量（整列表 2 次请求），
-  // scoped 包逐个 point 查询（并行）。
-  const plainNames = names.filter((n) => !n.startsWith('@'))
-  const scopedNames = names.filter((n) => n.startsWith('@'))
 
-  const pointFor = async (name: string, period: string): Promise<DownloadPoint | undefined> => {
-    try { return await fetchPoint(d, name, period) } catch { return undefined }
-  }
-
-  // 并行：每个目标一个 dist-tags 请求 + 普通包两个批量请求 + scoped 包逐个请求。
-  const [tagResults, bulkDay, bulkWeek, ...scopedPoints] = await Promise.all([
+  // 并行：每个目标各一个 dist-tags 请求 + 一个 range/last-week 请求。
+  // 日粒度 7 点随 range 响应返回，昨日 / 近 7 天由它推导（point 批量接口
+  // 不支持 scoped 包，range 按包查询对两类包一视同仁）。请求失败静默降级：
+  // 该包保持上次的下载量数据，仅版本检查失败才标 error。
+  const [tagResults, rangeResults] = await Promise.all([
     Promise.all(targets.map(async (w) => {
       try { return { name: w.name, tags: await fetchDistTags(d, w.name), error: undefined as string | undefined } } catch (e) {
         return { name: w.name, tags: undefined, error: (e as Error).message || String(e) }
       }
     })),
-    fetchBulkPoints(d, plainNames, 'last-day').catch(() => ({}) as Record<string, DownloadPoint>),
-    fetchBulkPoints(d, plainNames, 'last-week').catch(() => ({}) as Record<string, DownloadPoint>),
-    ...scopedNames.flatMap((n) => [
-      pointFor(n, 'last-day').then((p) => ({ name: n, period: 'last-day', point: p })),
-      pointFor(n, 'last-week').then((p) => ({ name: n, period: 'last-week', point: p })),
-    ]),
+    Promise.all(targets.map(async (w) => {
+      try { return { name: w.name, data: entryDataFromRange(await fetchDailyRange(d, w.name, 'last-week')) } } catch {
+        return { name: w.name, data: undefined }
+      }
+    })),
   ])
-  const scopedPointOf = (name: string, period: string): DownloadPoint | undefined =>
-    (scopedPoints as Array<{ name: string; period: string; point?: DownloadPoint }>).find((s) => s.name === name && s.period === period)?.point
 
   for (const w of targets) {
     const tagHit = tagResults.find((t) => t.name === w.name)
-    const dayHit = w.name.startsWith('@') ? scopedPointOf(w.name, 'last-day') : bulkDay[w.name]
-    const weekHit = w.name.startsWith('@') ? scopedPointOf(w.name, 'last-week') : bulkWeek[w.name]
+    const rangeHit = rangeResults.find((r) => r.name === w.name)
     if (tagHit && tagHit.error !== undefined) {
       w.error = tagHit.error
       continue
     }
     const latest = tagHit && tagHit.tags && typeof tagHit.tags.latest === 'string' ? tagHit.tags.latest : w.lastVersion
-    const day = dayHit !== undefined ? dayHit.downloads : (w.lastDay ?? 0)
-    const week = weekHit !== undefined ? weekHit.downloads : (w.lastWeek ?? 0)
+    const day = rangeHit !== undefined && rangeHit.data !== undefined ? rangeHit.data.day : (w.lastDay ?? 0)
+    const week = rangeHit !== undefined && rangeHit.data !== undefined ? rangeHit.data.week : (w.lastWeek ?? 0)
+    const daily = rangeHit !== undefined && rangeHit.data !== undefined ? rangeHit.data.daily : undefined
     // 快照对比基准：本次刷新前的值即「上上个快照」（供客户端趋势箭头）。
     const prevDay = w.lastDay
     const prevWeek = w.lastWeek
@@ -223,6 +227,7 @@ async function opWatchRefresh(deps: OpsDeps, rawPkg?: string): Promise<{ watch: 
     w.lastCheckAt = checkedAt
     w.lastDay = day
     w.lastWeek = week
+    if (daily !== undefined) w.daily = daily
     w.error = undefined
     if (latest !== undefined && latest !== w.lastVersion) {
       const from = w.lastVersion ?? ''

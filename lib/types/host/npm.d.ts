@@ -28,6 +28,33 @@ export declare class NpmError extends Error {
 }
 /** 包名归一化：容忍粘贴 npm 页面链接 / 前后空白 / 统一小写 scope。 */
 export declare function normalizePkgName(raw: string): string;
+/** 识别主流托管平台（github / gitlab / gitee）的仓库网页地址，返回 { host, slug }。 */
+export declare function platformSlugOf(url: string): {
+    host: string;
+    slug: string;
+} | undefined;
+/** 平台仓库地址 → issues 页地址（gitlab 的 issues 挂在 /-/issues）。 */
+export declare function issuesUrlOfPlatform(host: string, slug: string): string;
+/**
+ * registry 文档的 repository / bugs 字段 → 仓库网页地址 + issues 跳转地址。
+ *
+ * repository 归一化常见非网页形态：git+ 前缀 / .git 后缀 / git:// 协议 /
+ * ssh://git@ / scp 形式（git@host:path）/ npm shorthand（github:owner/repo 等）。
+ *
+ * issues 推导规则：npm 的 bugs 常见形态是 { email } / mailto:（当链接用会唤起
+ * 邮件客户端），还有大量包把 bugs.url 填成仓库首页甚至裸域名（点了就是
+ * GitHub 首页）。因此：
+ * 1. 只接受 http(s) 形式的 bugs.url；
+ * 2. 托管平台链接统一校验/补全为 issues 页：已是 issues 页原样保留，
+ *    仓库首页补 /issues（gitlab 为 /-/issues），裸域名/仅组织名等定位不到
+ *    仓库的丢弃；
+ * 3. 非托管平台的自定义 tracker 原样保留；
+ * 4. 仍无可用链接时，从 repository 推导 issues 页。
+ */
+export declare function deriveRepoAndIssues(repoRaw: unknown, bugsRaw: unknown): {
+    repository?: string;
+    bugs?: string;
+};
 /** 包名合法性（npm rules 的宽松版：scope 可选，主体字符 [a-z0-9-._~]）。 */
 export declare function isValidPkgName(name: string): boolean;
 /** 轻量 dist-tags（监控刷新用，响应极小）。 */
