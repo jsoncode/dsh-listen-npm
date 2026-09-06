@@ -1,0 +1,1 @@
+{"version":3,"file":"HistoryTab.d.ts","sourceRoot":"","sources":["../../../../src/client/components/HistoryTab.tsx"],"names":[],"mappings":"AAAA;;;wDAGwD;AAGxD,OAAO,KAAK,EAAE,KAAK,EAAE,MAAM,WAAW,CAAA;AAItC,MAAM,WAAW,eAAe;IAC9B,GAAG,EAAE,KAAK,CAAA;IACV,sBAAsB;IACtB,KAAK,EAAE,MAAM,EAAE,CAAA;CAChB;AAUD,wBAAgB,UAAU,CAAC,EAAE,GAAG,EAAE,KAAK,EAAE,EAAE,eAAe,+BA6EzD"}
