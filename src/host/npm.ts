@@ -1,13 +1,19 @@
 /**
- * dsh-listen-npm —�?npm 官方 API 调用核心（curl.exe，经宿主 subprocess 服务执行）�? *
- * �?dsh-jenkins �?jenkins.ts 同一模式：直�?spawn curl.exe，绕开 pwsh-sandbox
- * 受限令牌导致�?Schannel 问题；`-D -` 输出响应头用于解析状态码�? *
- * 数据源（均可在插件配置中替换，便于使用镜像）�? * - registry�?registryUrl>/<pkg>              全量文档（含 time / versions / readme�? * - registry�?registryUrl>/-/package/<pkg>/dist-tags   轻量 dist-tags
- * - registry�?registryUrl>/-/v1/search?text=  搜索
- * - downloads�?downloadsUrl>/point/<period>/<pkg>       周期下载量汇总（支持批量逗号分隔�? * - downloads�?downloadsUrl>/range/<period>/<pkg>       日粒度下载量（昨日起往前）
+ * dsh-listen-npm —— npm 官方 API 调用核心（curl.exe，经宿主 subprocess 服务执行）。
  *
- * 注意：downloads API �?scoped 包名使用原始斜杠（@scope/name），registry 则把
- * 斜杠编码�?%2F（实测两种服务的接受形式不同）�? */
+ * 与 dsh-jenkins 的 jenkins.ts 同一模式：直接 spawn curl.exe，绕开 pwsh-sandbox
+ * 受限令牌导致的 Schannel 问题；`-D -` 输出响应头用于解析状态码。
+ *
+ * 数据源（均可在插件配置中替换，便于使用镜像）：
+ * - registry：<registryUrl>/<pkg>              全量文档（含 time / versions / readme）
+ * - registry：<registryUrl>/-/package/<pkg>/dist-tags   轻量 dist-tags
+ * - registry：<registryUrl>/-/v1/search?text=  搜索
+ * - downloads：<downloadsUrl>/point/<period>/<pkg>       周期下载量汇总（支持批量逗号分隔）
+ * - downloads：<downloadsUrl>/range/<period>/<pkg>       日粒度下载量（昨日起往前）
+ *
+ * 注意：downloads API 的 scoped 包名使用原始斜杠（@scope/name），registry 则把
+ * 斜杠编码为 %2F（实测两种服务的接受形式不同）。
+ */
 
 import type { DailyPoint, DownloadPoint, HostCtxLike, PackageInfo, SearchItem, SubprocessService } from './types.ts'
 
@@ -18,10 +24,10 @@ export interface NpmDeps {
 }
 
 const CURL_TIMEOUT = 60
-/** 全量文档上限：react（约 3000 个版本）全量�?7MB，给足余量�?*/
+/** 全量文档上限：react（约 3000 个版本）全量约 7MB，给足余量。 */
 const STDOUT_MAX = 32 * 1024 * 1024
 
-/** npm API 错误（带本地化码，客户端�?code 显示�?英文）�?*/
+/** npm API 错误（带本地化码，客户端按 code 显示中/英文）。 */
 export class NpmError extends Error {
   status?: number
   code?: string
@@ -32,16 +38,17 @@ export class NpmError extends Error {
   }
 }
 
-/** 包名归一化：容忍粘贴 npm 页面链接 / 前后空白 / 统一小写 scope�?*/
+/** 包名归一化：容忍粘贴 npm 页面链接 / 前后空白 / 统一小写 scope。 */
 export function normalizePkgName(raw: string): string {
   let name = String(raw || '').trim()
-  // 粘贴�?npmjs.com/package/xxx �?registry 链接时取包名段�?  const m = name.match(/\/package\/(@?[^/?#]+)/)
+  // 粘贴了 npmjs.com/package/xxx 或 registry 链接时取包名段。
+  const m = name.match(/\/package\/(@?[^/?#]+)/)
   if (m) name = m[1]
   name = name.replace(/^npm:/, '')
   return name.trim()
 }
 
-/** 包名合法性（npm rules 的宽松版：scope 可选，主体字符 [a-z0-9-._~]）�?*/
+/** 包名合法性（npm rules 的宽松版：scope 可选，主体字符 [a-z0-9-._~]）。 */
 export function isValidPkgName(name: string): boolean {
   if (!name || name.length > 214) return false
   if (!name.startsWith('@')) {
@@ -52,11 +59,11 @@ export function isValidPkgName(name: string): boolean {
   return /^[a-z0-9-._~]+$/i.test(name.slice(1, slash)) && /^[a-z0-9-._~]+$/i.test(name.slice(slash + 1))
 }
 
-/** registry 路径的包名编码：@ 保留�? 编码�?%2F�?*/
+/** registry 路径的包名编码：@ 保留、/ 编码为 %2F。 */
 const registryEnc = (name: string): string =>
   encodeURIComponent(name).replace(/^%40/, '@')
 
-/** 拆分 `-D -` 输出的响应头与响应体（兼�?\r\n �?\n 两种行尾）�?*/
+/** 拆分 `-D -` 输出的响应头与响应体（兼容 \r\n 与 \n 两种行尾）。 */
 function splitHeaders(stdout: string): { headers: string; body: string } {
   const i1 = stdout.indexOf('\r\n\r\n')
   if (i1 !== -1) return { headers: stdout.slice(0, i1), body: stdout.slice(i1 + 4) }
@@ -65,14 +72,14 @@ function splitHeaders(stdout: string): { headers: string; body: string } {
   return { headers: stdout, body: '' }
 }
 
-/** 取响应头里最后一�?HTTP 状态码（重定向链末尾）�?*/
+/** 取响应头里最后一个 HTTP 状态码（重定向链末尾）。 */
 function lastStatus(headers: string): number {
   const matches = [...headers.matchAll(/HTTP\/\d(?:\.\d)?\s+(\d+)/g)]
   if (matches.length === 0) return 0
   return Number(matches[matches.length - 1][1])
 }
 
-/** 执行一�?GET（curl.exe �?subprocess �?spawn，跟随重定向）�?*/
+/** 执行一次 GET（curl.exe 经 subprocess 直 spawn，跟随重定向）。 */
 async function npmGet(deps: NpmDeps, url: string): Promise<{ status: number; body: string }> {
   const sub = deps.ctx.get('subprocess') as SubprocessService | undefined
   if (sub === undefined) throw new NpmError('subprocess-missing', 'subprocess service unavailable')
@@ -116,7 +123,7 @@ async function npmGet(deps: NpmDeps, url: string): Promise<{ status: number; bod
   return { status: lastStatus(parsed.headers), body: parsed.body }
 }
 
-/** GET 并解�?JSON；非 2xx / downloads 错误载荷统一�?NpmError�?*/
+/** GET 并解析 JSON；非 2xx / downloads 错误载荷统一抛 NpmError。 */
 async function npmGetJson(deps: NpmDeps, url: string, source: 'registry' | 'downloads'): Promise<unknown> {
   const res = await npmGet(deps, url)
   if (res.status === 404) throw new NpmError('pkg-not-found', 'HTTP 404: ' + url, 404)
@@ -128,7 +135,8 @@ async function npmGetJson(deps: NpmDeps, url: string, source: 'registry' | 'down
   } catch {
     throw new NpmError('parse-failed', 'invalid JSON from ' + source)
   }
-  // downloads API 对不存在的包返回 200 + { error: "package x not found" }�?  if (source === 'downloads' && parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+  // downloads API 对不存在的包返回 200 + { error: "package x not found" }。
+  if (source === 'downloads' && parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
     const err = (parsed as { error?: unknown }).error
     if (typeof err === 'string' && err.length > 0) throw new NpmError('pkg-not-found', err, 404)
   }
@@ -138,9 +146,9 @@ async function npmGetJson(deps: NpmDeps, url: string, source: 'registry' | 'down
 const registryBase = (deps: NpmDeps): string => deps.registryUrl.replace(/\/+$/, '')
 const downloadsBase = (deps: NpmDeps): string => deps.downloadsUrl.replace(/\/+$/, '')
 
-/* ── 各数据端�?─────────────────────────────────────────────────── */
+/* ── 各数据端点 ─────────────────────────────────────────────────── */
 
-/** 轻量 dist-tags（监控刷新用，响应极小）�?*/
+/** 轻量 dist-tags（监控刷新用，响应极小）。 */
 export async function fetchDistTags(deps: NpmDeps, name: string): Promise<Record<string, string>> {
   const parsed = await npmGetJson(deps, `${registryBase(deps)}/-/package/${registryEnc(name)}/dist-tags`, 'registry')
   if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) throw new NpmError('parse-failed', 'dist-tags must be an object')
@@ -156,7 +164,9 @@ export interface FullDocResult {
 }
 
 /**
- * 全量文档 �?规范�?PackageInfo�? * readme 截断�?6000 字符；versions 按发布时间倒序截断�?100 个�? */
+ * 全量文档 → 规范化 PackageInfo。
+ * readme 截断前 6000 字符；versions 按发布时间倒序截断前 100 个。
+ */
 export async function fetchPackageInfo(deps: NpmDeps, name: string): Promise<FullDocResult> {
   const doc = await npmGetJson(deps, `${registryBase(deps)}/${registryEnc(name)}`, 'registry') as Record<string, unknown>
   if (!doc || typeof doc !== 'object') throw new NpmError('parse-failed', 'registry doc must be an object')
@@ -171,7 +181,8 @@ export async function fetchPackageInfo(deps: NpmDeps, name: string): Promise<Ful
   const versionsMap = (doc.versions && typeof doc.versions === 'object' && !Array.isArray(doc.versions) ? doc.versions : {}) as Record<string, Record<string, unknown>>
   const versionNames = Object.keys(versionsMap)
 
-  // versions 按发布时间倒序（缺时间的沉底），截�?100 个�?  const briefs = versionNames
+  // versions 按发布时间倒序（缺时间的沉底），截断 100 个。
+  const briefs = versionNames
     .map((v) => ({ version: v, time: time[v] || undefined, latest: v === latest }))
     .sort((a, b) => (b.time ? Date.parse(b.time) : 0) - (a.time ? Date.parse(a.time) : 0))
     .slice(0, 100)
@@ -179,14 +190,16 @@ export async function fetchPackageInfo(deps: NpmDeps, name: string): Promise<Ful
   const latestManifest = (latest !== undefined && versionsMap[latest] !== undefined ? versionsMap[latest] : undefined) || undefined
   const latestDist = (latestManifest && latestManifest.dist && typeof latestManifest.dist === 'object' ? latestManifest.dist : {}) as Record<string, unknown>
 
-  // author：字符串�?{ name, email } 两种形态�?  const authorRaw = doc.author
+  // author：字符串或 { name, email } 两种形态。
+  const authorRaw = doc.author
   const author = typeof authorRaw === 'string'
     ? authorRaw
     : authorRaw && typeof authorRaw === 'object' && typeof (authorRaw as { name?: unknown }).name === 'string'
       ? String((authorRaw as { name: string }).name)
       : undefined
 
-  // repository：{ url } 或字符串 �?网页地址（github.com/... 去掉 git+ 前缀�?.git 后缀）�?  const repoRaw = doc.repository
+  // repository：{ url } 或字符串 → 网页地址（github.com/... 去掉 git+ 前缀与 .git 后缀）。
+  const repoRaw = doc.repository
   let repository: string | undefined
   const repoUrl = typeof repoRaw === 'string' ? repoRaw : repoRaw && typeof repoRaw === 'object' && typeof (repoRaw as { url?: unknown }).url === 'string' ? String((repoRaw as { url: string }).url) : ''
   if (repoUrl) {
@@ -255,7 +268,7 @@ export async function fetchPackageInfo(deps: NpmDeps, name: string): Promise<Ful
   return { info }
 }
 
-/** 日粒度下载量（range/last-week �?range/last-month，按时间正序返回）�?*/
+/** 日粒度下载量（range/last-week 或 range/last-month，按时间正序返回）。 */
 export async function fetchDailyRange(deps: NpmDeps, name: string, range: 'last-week' | 'last-month'): Promise<{ start: string; end: string; downloads: DailyPoint[] }> {
   const parsed = await npmGetJson(deps, `${downloadsBase(deps)}/range/${range}/${encodeURIComponent(name)}`, 'downloads') as Record<string, unknown>
   const rawList = Array.isArray(parsed.downloads) ? parsed.downloads : []
@@ -271,7 +284,7 @@ export async function fetchDailyRange(deps: NpmDeps, name: string, range: 'last-
   }
 }
 
-/** 单周期下载量汇总（point/last-day|last-week|last-month|last-year）�?*/
+/** 单周期下载量汇总（point/last-day|last-week|last-month|last-year）。 */
 export async function fetchPoint(deps: NpmDeps, name: string, period: string): Promise<DownloadPoint> {
   const parsed = await npmGetJson(deps, `${downloadsBase(deps)}/point/${period}/${encodeURIComponent(name)}`, 'downloads') as Record<string, unknown>
   return {
@@ -282,9 +295,13 @@ export async function fetchPoint(deps: NpmDeps, name: string, period: string): P
 }
 
 /**
- * 批量周期下载量（point/<period>/<pkg1,pkg2,�?，一次请求覆盖整个监控列表）�? *
- * 注意：downloads API 的批量接�?*不支�?scoped �?*（服务端 400�? * "scoped packages are not currently supported in bulk lookups"），调用方需
- * 先把 scoped 包拆出去单独查（�?ops.ts �?watchRefresh）。包名逐个编码�? * 分隔逗号保持原样（服务端按裸逗号切分）�? */
+ * 批量周期下载量（point/<period>/<pkg1,pkg2,…>，一次请求覆盖整个监控列表）。
+ *
+ * 注意：downloads API 的批量接口**不支持 scoped 包**（服务端 400：
+ * "scoped packages are not currently supported in bulk lookups"），调用方需
+ * 先把 scoped 包拆出去单独查（见 ops.ts 的 watchRefresh）。包名逐个编码、
+ * 分隔逗号保持原样（服务端按裸逗号切分）。
+ */
 export async function fetchBulkPoints(deps: NpmDeps, names: string[], period: string): Promise<Record<string, DownloadPoint>> {
   if (names.length === 0) return {}
   if (names.some((n) => n.startsWith('@'))) throw new NpmError('bulk-scoped', 'bulk downloads API does not support scoped packages')
@@ -304,7 +321,7 @@ export async function fetchBulkPoints(deps: NpmDeps, names: string[], period: st
   return out
 }
 
-/** registry 搜索�?-/v1/search），供弹框输入联想�?*/
+/** registry 搜索（/-/v1/search），供弹框输入联想。 */
 export async function searchPackages(deps: NpmDeps, text: string, size: number): Promise<SearchItem[]> {
   const capped = Math.max(1, Math.min(20, size))
   const url = `${registryBase(deps)}/-/v1/search?text=${encodeURIComponent(text)}&size=${capped}`

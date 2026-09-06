@@ -1,20 +1,26 @@
 /**
- * dsh-listen-npm —�?插件数据文件存储�?DSH_HOME/dsh-listen-npm.json）�? *
- * 监控列表与快照历史的唯一持久化源（无敏感数据，明�?JSON）�? * 路径解析优先级：settings 服务 documentPath 所在目�?�?$DSH_HOME 环境变量 �? * ~/.dsh。不新增 peerDependency（复�?node:fs / node:os）�? *
- * 写路径为进程内串行队�?+ 临时文件 rename 原子写；损坏文件备份�?.bak�? */
+ * dsh-listen-npm —— 插件数据文件存储（$DSH_HOME/dsh-listen-npm.json）。
+ *
+ * 监控列表与快照历史的唯一持久化源（无敏感数据，明文 JSON）。
+ * 路径解析优先级：settings 服务 documentPath 所在目录 → $DSH_HOME 环境变量 →
+ * ~/.dsh。不新增 peerDependency（复用 node:fs / node:os）。
+ *
+ * 写路径为进程内串行队列 + 临时文件 rename 原子写；损坏文件备份为 .bak。
+ */
 
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import type { NpmStoreData, Snapshot, WatchEntry } from './types.ts'
 
-// 便于宿主入口从本模块取数据文件类型（�?EMPTY_STORE / loadStore 同源）�?export type { NpmStoreData, Snapshot, WatchEntry }
+// 便于宿主入口从本模块取数据文件类型（与 EMPTY_STORE / loadStore 同源）。
+export type { NpmStoreData, Snapshot, WatchEntry }
 
-/** 数据文件格式版本（预留演进）�?*/
+/** 数据文件格式版本（预留演进）。 */
 export const STORE_VERSION = 1
 export const STORE_FILE = 'dsh-listen-npm.json'
 
-/** 每个包的快照上限（历史时间线防膨胀）�?*/
+/** 每个包的快照上限（历史时间线防膨胀）。 */
 export const SNAPSHOTS_LIMIT = 200
 
 export const EMPTY_STORE = (): NpmStoreData => ({ version: STORE_VERSION, watch: [], snapshots: {} })
@@ -22,7 +28,9 @@ export const EMPTY_STORE = (): NpmStoreData => ({ version: STORE_VERSION, watch:
 let cachedDir: string | null = null
 
 /**
- * 解析插件数据目录。优先级：settings documentPath 目录 �?$DSH_HOME �?~/.dsh�? * 结果进程内缓存（宿主运行期目录不会变化）�? */
+ * 解析插件数据目录。优先级：settings documentPath 目录 → $DSH_HOME → ~/.dsh。
+ * 结果进程内缓存（宿主运行期目录不会变化）。
+ */
 export function resolveStoreDir(settingsDocPath?: string): string {
   if (cachedDir !== null) return cachedDir
   if (settingsDocPath && settingsDocPath.trim().length > 0) {
@@ -34,12 +42,12 @@ export function resolveStoreDir(settingsDocPath?: string): string {
   return cachedDir
 }
 
-/** 测试用：重置路径缓存�?*/
+/** 测试用：重置路径缓存。 */
 export function resetStoreDirCache(): void {
   cachedDir = null
 }
 
-/** 反序列化并校验（字段级兜底，坏条目丢弃而非崩溃）�?*/
+/** 反序列化并校验（字段级兜底，坏条目丢弃而非崩溃）。 */
 function openStore(raw: string): NpmStoreData {
   const parsed = JSON.parse(raw) as { version?: unknown; watch?: unknown; snapshots?: unknown }
   if (!parsed || typeof parsed !== 'object') throw new Error('store root must be an object')
@@ -82,7 +90,9 @@ function openStore(raw: string): NpmStoreData {
 }
 
 /**
- * 读取数据文件�? * @returns 有效 store；文件不存在返回 null；损坏时备份�?.bak 并返�?null�? */
+ * 读取数据文件。
+ * @returns 有效 store；文件不存在返回 null；损坏时备份为 .bak 并返回 null。
+ */
 export async function loadStore(dir: string): Promise<NpmStoreData | null> {
   const target = join(dir, STORE_FILE)
   let raw: string
@@ -118,9 +128,9 @@ function doSave(dir: string, store: NpmStoreData): Promise<void> {
   })()
 }
 
-/** 保存数据文件（整体替换）。写操作串行化，避免并发写坏文件�?*/
+/** 保存数据文件（整体替换）。写操作串行化，避免并发写坏文件。 */
 export function saveStore(dir: string, store: NpmStoreData): Promise<void> {
   const next = writeChain.then(() => doSave(dir, store))
-  writeChain = next.catch(() => { /* 队列继续，错误由调用方处�?*/ })
+  writeChain = next.catch(() => { /* 队列继续，错误由调用方处理 */ })
   return next
 }

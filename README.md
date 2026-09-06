@@ -5,7 +5,7 @@
 </p>
 
 **dsh-listen-npm** is an npm package monitor plugin for DeepSeek Harness (DSH).
-Query any npm package's full info �?with **daily install counts** highlighted �?and
+Query any npm package's full info — with **daily install counts** highlighted — and
 watch your own packages for version / download changes.
 
 - **Full package info**: latest version, dist-tags, description, license, author,
@@ -29,7 +29,7 @@ modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
 
 ## Features
 
-- **Query tab** �?type a package name (or paste an npmjs.com link): debounced
+- **Query tab** — type a package name (or paste an npmjs.com link): debounced
   suggestions from the registry search API, full detail on Enter / click:
   - Download stats card: **yesterday / last 7 days / last 30 days / last year**
     (yesterday is the hero stat) plus a 30-day daily bar chart with peak,
@@ -39,21 +39,21 @@ modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
   - dist-tags chips, dependencies (deps / peer / dev), recent version list,
     README excerpt
   - One-click **Watch** button
-- **Watch tab** �?add/remove packages; each row shows the latest version (with
+- **Watch tab** — add/remove packages; each row shows the latest version (with
   a NEW badge when it changed), day/7-day downloads with trend vs the previous
   snapshot, last-check time, and per-row refresh via the header button
-- **History tab** �?snapshot timeline per package (recorded on watch-add and
+- **History tab** — snapshot timeline per package (recorded on watch-add and
   version changes): time, version, day/week downloads, change type
-- **Background polling** �?the poller runs decoupled from the modal; every
+- **Background polling** — the poller runs decoupled from the modal; every
   `refreshMinutes` (host config, default 10) it refreshes the whole watch list
   with 1 lightweight `dist-tags` request per package + 2 bulk download-count
   requests total; new versions light up the amber footer badge until viewed
-- **Data files** �?watch list and snapshots persist to
+- **Data files** — watch list and snapshots persist to
   `$DSH_HOME/dsh-listen-npm.json` (atomic writes, `.bak` on corruption)
-- **HTTP API** �?the browser half talks to `/dsh-listen-npm/api`
+- **HTTP API** — the browser half talks to `/dsh-listen-npm/api`
   (trust-fenced POST JSON), so polling never produces command nodes in the
   conversation; falls back to the command channel on older hosts
-- **Model tools** �?`dsh_npm_info` / `dsh_npm_downloads` / `dsh_npm_watch`
+- **Model tools** — `dsh_npm_info` / `dsh_npm_downloads` / `dsh_npm_watch`
   (list / add / remove / refresh)
 
 ## Configuration (host config)
@@ -71,7 +71,7 @@ refreshMinutes: 10                        # watch list auto refresh interval
   day npm has published.
 - Scoped packages (`@scope/name`) are supported everywhere; the registry path
   URL-encodes the slash while the downloads API uses it raw.
-- The full registry doc is fetched once per query (react �?7 MB) �?the curl
+- The full registry doc is fetched once per query (react ≈ 7 MB) — the curl
   collector caps at 32 MB.
 
 ## File structure
@@ -80,7 +80,7 @@ refreshMinutes: 10                        # watch list auto refresh interval
 ├── src/host/*.ts         # host half: index.ts (entry), npm.ts (curl core), ops.ts (op dispatch), store.ts, fence.ts, types.ts
 ├── src/client/*.tsx      # browser half (React TSX): plugin.tsx, i18n, styles, rpc, store, poller, components/*
 ├── lib/index.js          # host half build artifact (tsdown, ESM), committed for git installs
-├── lib/client.js         # browser half build artifact (tsdown �?__ModuleLoader__ factory), committed
+├── lib/client.js         # browser half build artifact (tsdown → __ModuleLoader__ factory), committed
 ├── lib/types/            # type declarations (tsc -b)
 ├── scripts/              # verify-client.mjs (host seed-table simulation)
 ├── tsdown.config.ts      # tsdown config (node half + client bundle banner wrap)

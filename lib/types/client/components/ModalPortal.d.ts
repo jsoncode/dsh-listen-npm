@@ -1,8 +1,9 @@
 /**
- * dsh-listen-npm —�?弹框统一挂载（React portal �?document.body，与 dsh-jenkins 同模式）�? */
+ * dsh-listen-npm —— 弹框统一挂载（React portal → document.body，与 dsh-jenkins 同模式）。
+ */
 import type { ReactNode } from 'react';
 export interface ModalPortalProps {
-    /** 点击蒙版回调（缺省则点击蒙版不关闭）�?*/
+    /** 点击蒙版回调（缺省则点击蒙版不关闭）。 */
     onBackdropClose?: () => void;
     children: ReactNode;
 }

@@ -1,6 +1,7 @@
 /**
- * dsh-listen-npm —�?浏览器半边：样式注入（dshn- 前缀，与 dsh-jenkins 同一
- * �?bundle CSS 注入模式；设计令牌复用宿�?--dsw-alias-* 变量，深浅色自适应）�? */
+ * dsh-listen-npm —— 浏览器半边：样式注入（dshn- 前缀，与 dsh-jenkins 同一
+ * 的 bundle CSS 注入模式；设计令牌复用宿主 --dsw-alias-* 变量，深浅色自适应）。
+ */
 
 const CSS_ID = 'dsh-listen-npm/settings.css'
 
@@ -41,10 +42,14 @@ export const css = [
   '.dshn-capsule{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;border-radius:999px;font-size:10px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums;box-sizing:border-box;white-space:nowrap}',
   // 监控数量：中性蓝描边胶囊
   '.dshn-capsule-watch{color:var(--dsw-alias-brand-primary,#1668e3);border:1px solid color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 55%,transparent);background:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 12%,transparent)}',
-  // 有新版本：琥珀橙实心胶囊（醒目提醒�?  '.dshn-capsule-new{color:#4a3500;background:#f0b429;border:1px solid color-mix(in srgb,#f0b429 60%,#fff)}',
+  // 有新版本：琥珀橙实心胶囊（醒目提醒）
+  '.dshn-capsule-new{color:#4a3500;background:#f0b429;border:1px solid color-mix(in srgb,#f0b429 60%,#fff)}',
 
   // ── 弹框骨架 ────────────────────────────────────────────────────
-  // 背景令牌必须用宿主真实存在的 bg-layer-1（与 dsh-jenkins �?.dshj-modal 同源�?  // 不可用不存在�?--dsw-alias-bg-elevated，否则回退白底 + 深色主题浅字无法辨识）�?  // 92% 不透明 + 高斯模糊：磨砂玻璃质感的同时保证任意主题下文字对比度�?  '.dshn-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}',
+  // 背景令牌必须用宿主真实存在的 bg-layer-1（与 dsh-jenkins 的 .dshj-modal 同源；
+  // 不可用不存在的 --dsw-alias-bg-elevated，否则回退白底 + 深色主题浅字无法辨识）。
+  // 92% 不透明 + 高斯模糊：磨砂玻璃质感的同时保证任意主题下文字对比度。
+  '.dshn-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}',
   '.dshn-modal{background:color-mix(in srgb,var(--dsw-alias-bg-layer-1,#fff) 92%,transparent);color:var(--dsw-alias-label-primary,#222);border:1px solid var(--dsw-alias-border-l2,#ddd);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.25);width:min(980px,94vw);height:min(760px,88vh);display:flex;flex-direction:column;overflow:hidden;-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5)}',
   '.dshn-modal-head{display:flex;align-items:center;gap:10px;padding:14px 18px 10px;border-bottom:1px solid var(--dsw-alias-border-l1,#eee);flex:none}',
   '.dshn-modal-logo{height:30px;width:30px;border-radius:8px;flex:none}',
@@ -72,7 +77,7 @@ export const css = [
   '.dshn-search-item-desc{color:var(--dsw-alias-label-secondary,#888);font-size:12px;margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}',
   '.dshn-search-item-meta{color:var(--dsw-alias-label-tertiary,#aaa);font-size:11px;margin-top:2px;font-variant-numeric:tabular-nums}',
 
-  // ── 详情：头�?/ 下载量卡�?/ 图表 / 元信�?─────────────────────
+  // ── 详情：头部 / 下载量卡片 / 图表 / 元信息 ─────────────────────
   '.dshn-detail-head{display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap}',
   '.dshn-detail-name{font-size:20px;font-weight:700;line-height:28px;word-break:break-all}',
   '.dshn-detail-ver{display:inline-flex;align-items:center;gap:6px;margin-left:8px}',
@@ -101,7 +106,8 @@ export const css = [
   '.dshn-chart-grid{stroke:var(--dsw-alias-border-l1,#eee);stroke-width:1}',
   '.dshn-chart-avg{stroke:var(--dsw-alias-state-warn-primary,#b8860b);stroke-width:1;stroke-dasharray:4 3}',
   '.dshn-chart-text{fill:var(--dsw-alias-label-tertiary,#999);font-size:10px;font-family:inherit}',
-  // 元信息两�?  '.dshn-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px}',
+  // 元信息两列
+  '.dshn-meta{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px 18px}',
   '.dshn-meta-row{display:flex;gap:8px;font-size:12.5px;line-height:20px;min-width:0}',
   '.dshn-meta-key{color:var(--dsw-alias-label-secondary,#888);flex:none;width:84px;text-align:right}',
   '.dshn-meta-val{color:var(--dsw-alias-label-primary,#222);min-width:0;word-break:break-all;font-variant-numeric:tabular-nums}',
@@ -109,7 +115,8 @@ export const css = [
   '.dshn-dep-list{margin:6px 0 0;font-size:12px;line-height:20px;color:var(--dsw-alias-label-secondary,#777);word-break:break-all}',
   '.dshn-dep-list code{font-family:ui-monospace,SFMono-Regular,Consolas,monospace;font-size:11.5px;margin-right:10px}',
   '.dshn-dep-list code b{color:var(--dsw-alias-label-primary,#222);font-weight:600}',
-  // 版本�?  '.dshn-table{width:100%;border-collapse:collapse;font-size:12.5px}',
+  // 版本表
+  '.dshn-table{width:100%;border-collapse:collapse;font-size:12.5px}',
   '.dshn-table th{text-align:left;color:var(--dsw-alias-label-secondary,#888);font-weight:500;padding:6px 8px;border-bottom:1px solid var(--dsw-alias-border-l1,#eee);white-space:nowrap}',
   '.dshn-table td{padding:6px 8px;border-bottom:1px solid color-mix(in srgb,var(--dsw-alias-border-l1,#eee) 60%,transparent);font-variant-numeric:tabular-nums;word-break:break-all}',
   '.dshn-table tr:hover td{background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.08))}',
@@ -136,15 +143,16 @@ export const css = [
   '.dshn-history-bar{display:flex;gap:8px;align-items:center;margin-bottom:12px}',
   '.dshn-history-bar .dshn-select{max-width:320px}',
   '.dshn-note-chip{display:inline-flex;padding:1px 8px;border-radius:999px;font-size:11px;line-height:16px;border:1px solid var(--dsw-alias-border-l2,#ddd);color:var(--dsw-alias-label-secondary,#777)}',
-  // 版本变更徽章：实心琥珀�?+ 深琥珀字（自包含配色，深浅主题下对比度一致）
+  // 版本变更徽章：实心琥珀底 + 深琥珀字（自包含配色，深浅主题下对比度一致）
   '.dshn-note-version{color:#4a3500;background:#f0b429;border-color:transparent}',
   '.dshn-note-init{color:var(--dsw-alias-brand-primary,#1668e3);border-color:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 40%,transparent)}',
 
   // ── 兜底：不支持 backdrop-filter 的浏览器 ──────────────────────
-  // 半透明玻璃退化为不透明面板，避免底层内容透出干扰文字对比度�?  '@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))){.dshn-modal,.dshn-search-pop{background:var(--dsw-alias-bg-layer-1,#fff)}.dshn-card,.dshn-stat,.dshn-watch-item{background:var(--dsw-alias-bg-layer-2,#fafafa)}.dshn-input,.dshn-select{background:var(--dsw-alias-bg-base,#fff)}}',
+  // 半透明玻璃退化为不透明面板，避免底层内容透出干扰文字对比度。
+  '@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))){.dshn-modal,.dshn-search-pop{background:var(--dsw-alias-bg-layer-1,#fff)}.dshn-card,.dshn-stat,.dshn-watch-item{background:var(--dsw-alias-bg-layer-2,#fafafa)}.dshn-input,.dshn-select{background:var(--dsw-alias-bg-base,#fff)}}',
 ]
 
-/** 幂等注入样式（style id 去重）�?*/
+/** 幂等注入样式（style id 去重）。 */
 export function injectStyles(): void {
   if (typeof document === 'undefined') return
   const existing = document.getElementById(CSS_ID)

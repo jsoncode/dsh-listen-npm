@@ -1,9 +1,12 @@
 /**
- * verify-client —�?模拟宿主加载 lib/client.js，验�?__ModuleLoader__ 工厂可用�? *
- * 模拟内容（对齐宿�?ClientModuleSystem 行为）：
- * - window.__ModuleLoader__.load 收集工厂�? * - seed 表：react / react/jsx-runtime 用真实包，@deepseek-ai/* �?stub
- *   （Node 环境无法真实渲染，仅验证模块形状�?require 解析）；
- * - 执行 bundle 后物化工厂，断言返回 { name, inject, apply }�? */
+ * verify-client —— 模拟宿主加载 lib/client.js，验证 __ModuleLoader__ 工厂可用。
+ *
+ * 模拟内容（对齐宿主 ClientModuleSystem 行为）：
+ * - window.__ModuleLoader__.load 收集工厂；
+ * - seed 表：react / react/jsx-runtime 用真实包，@deepseek-ai/* 用 stub
+ *   （Node 环境无法真实渲染，仅验证模块形状与 require 解析）；
+ * - 执行 bundle 后物化工厂，断言返回 { name, inject, apply }。
+ */
 import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -49,19 +52,20 @@ vm.createContext(sandbox)
 vm.runInContext(code, sandbox, { filename: 'lib/client.js' })
 
 if (!factories.has(PLUGIN_ID)) {
-  console.error(`verify-client FAIL: bundle 未注�?"${PLUGIN_ID}" 工厂`)
+  console.error(`verify-client FAIL: bundle 未注册 "${PLUGIN_ID}" 工厂`)
   process.exit(1)
 }
 
 const makeRequire = (edges) => (spec) => {
   edges.add(spec)
   if (!(spec in seed)) {
-    throw new Error(`require("${spec}") 不在模拟 seed 表（构建�?external 漂移？）`)
+    throw new Error(`require("${spec}") 不在模拟 seed 表（构建时 external 漂移？）`)
   }
   return seed[spec]
 }
 
-// 物化（对�?materialize：同步、memoized�?const edges = new Set()
+// 物化（对齐 materialize：同步、memoized）
+const edges = new Set()
 const exports = factories.get(PLUGIN_ID)(makeRequire(edges))
 const mod = exports || {}
 

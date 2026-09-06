@@ -1,8 +1,13 @@
 /**
- * dsh-listen-npm —�?日安装量柱状图（�?SVG，无第三方图表依赖）�? *
- * 设计要点�? * - 数据�?npm 下载量日粒度序列（近 30 天，时间正序）；
- * - 突出显示：最新一天绿色柱（today �?T+1 数据）、峰值柱描金 + 顶部标注�? *   日均值虚�?+ 右侧标注�? * - 主题自适应：颜色全部走 CSS 类（styles.ts），深浅色模式跟随宿主；
- * - 每根柱带 <title> 原生 tooltip（日�?+ 精确下载量）�? */
+ * dsh-listen-npm —— 日安装量柱状图（纯 SVG，无第三方图表依赖）。
+ *
+ * 设计要点：
+ * - 数据为 npm 下载量日粒度序列（近 30 天，时间正序）；
+ * - 突出显示：最新一天绿色柱（today 的 T+1 数据）、峰值柱描金 + 顶部标注、
+ *   日均值虚线 + 右侧标注；
+ * - 主题自适应：颜色全部走 CSS 类（styles.ts），深浅色模式跟随宿主；
+ * - 每根柱带 <title> 原生 tooltip（日期 + 精确下载量）。
+ */
 
 import type { DailyPoint } from '../types.ts'
 import { fmtCompact, fmtInt } from '../format.ts'
@@ -36,15 +41,17 @@ export function DownloadChart({ data }: DownloadChartProps) {
   const yOf = (v: number): number => PAD_T + plotH - (v / max) * plotH
   const xOf = (i: number): number => PAD_L + slot * i + (slot - barW) / 2
 
-  // y �?3 条网格线�? / ½max / max），标签紧凑�?  const gridVals = [max, max / 2, 0]
+  // y 轴 3 条网格线（0 / ½max / max），标签紧凑化
+  const gridVals = [max, max / 2, 0]
 
-  // x 轴稀疏标注：�?/ �?/ �?  const xTicks = data.length >= 3
+  // x 轴稀疏标注：首 / 中 / 尾
+  const xTicks = data.length >= 3
     ? [0, Math.floor((data.length - 1) / 2), data.length - 1]
     : data.map((_, i) => i)
 
   return (
     <svg className="dshn-chart-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={t('dailyChartTitle')}>
-      {/* 网格�?+ y 轴标�?*/}
+      {/* 网格线 + y 轴标签 */}
       {gridVals.map((v, i) => {
         const y = yOf(v)
         return (
@@ -54,7 +61,7 @@ export function DownloadChart({ data }: DownloadChartProps) {
           </g>
         )
       })}
-      {/* 日均�?*/}
+      {/* 日均线 */}
       {avg > 0 && avg < max ? (
         <g>
           <line className="dshn-chart-avg" x1={PAD_L} y1={yOf(avg)} x2={W - PAD_R} y2={yOf(avg)} />
@@ -63,7 +70,7 @@ export function DownloadChart({ data }: DownloadChartProps) {
           </text>
         </g>
       ) : null}
-      {/* 柱体（hover 原生 tooltip�?/}
+      {/* 柱体（hover 原生 tooltip）*/}
       {data.map((p, i) => {
         const y = yOf(p.downloads)
         const h = Math.max(1, PAD_T + plotH - y)
@@ -90,7 +97,7 @@ export function DownloadChart({ data }: DownloadChartProps) {
           {fmtCompact(data[peakIdx].downloads)}
         </text>
       ) : null}
-      {/* x 轴日期标�?*/}
+      {/* x 轴日期标注 */}
       {xTicks.map((i) => {
         const day = data[i].day
         return (

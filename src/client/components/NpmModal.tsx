@@ -1,6 +1,9 @@
 /**
- * dsh-listen-npm —�?统一「npm 包监控」弹框：查询 / 监控 / 历史 三个 tab�? *
- * �?shell.overlay 槽位渲染（打开状态来自共�?ModalStore）；footer 入口�? * 监控徽标数据来自共享的后台轮询器（弹框关闭后仍在刷新）�? */
+ * dsh-listen-npm —— 统一「npm 包监控」弹框：查询 / 监控 / 历史 三个 tab。
+ *
+ * 由 shell.overlay 槽位渲染（打开状态来自共享 ModalStore）；footer 入口与
+ * 监控徽标数据来自共享的后台轮询器（弹框关闭后仍在刷新）。
+ */
 
 import { useEffect, useState } from 'react'
 import type { RunFn } from '../rpc.ts'
@@ -18,9 +21,9 @@ export interface NpmModalProps {
   useOpen: () => boolean
   close(): void
   poller: Poller
-  /** footer 胶囊摘要（监控数量徽标联动）�?*/
+  /** footer 胶囊摘要（监控数量徽标联动）。 */
   useSummary: () => WatchSummary
-  /** 自动刷新间隔（分钟，config op 下发的响应式 store）�?*/
+  /** 自动刷新间隔（分钟，config op 下发的响应式 store）。 */
   useRefreshMinutes: () => number
 }
 
@@ -34,13 +37,15 @@ export function NpmModal({ run, useOpen, close, poller, useSummary, useRefreshMi
   const refreshMinutes = useRefreshMinutes()
   const [watchNames, setWatchNames] = useState<string[]>([])
 
-  // 监控缓存变化时同步名称列表（监控/历史 tab 用）�?  useEffect(() => {
+  // 监控缓存变化时同步名称列表（监控/历史 tab 用）。
+  useEffect(() => {
     const update = (): void => setWatchNames(poller.getWatch().map((w) => w.name))
     update()
     return poller.subscribe(update)
   }, [poller])
 
-  // 打开监控 tab 时清一次新版本未读（footer 橙色胶囊消失）�?  useEffect(() => {
+  // 打开监控 tab 时清一次新版本未读（footer 橙色胶囊消失）。
+  useEffect(() => {
     if (open && tab === 'watch') poller.markSeen()
   }, [open, tab, poller])
 
@@ -57,8 +62,8 @@ export function NpmModal({ run, useOpen, close, poller, useSummary, useRefreshMi
           <div className="dshn-modal-sub">{t('modalSubtitle')}</div>
         </div>
         <div className="dshn-modal-head-ops">
-          <button type="button" className="dshn-btn-icon" title={t('refreshNow')} onClick={() => void poller.refresh()}>�?/button>
-          <button type="button" className="dshn-btn-icon" title={t('close')} onClick={close}>�?/button>
+          <button type="button" className="dshn-btn-icon" title={t('refreshNow')} onClick={() => void poller.refresh()}>⟳</button>
+          <button type="button" className="dshn-btn-icon" title={t('close')} onClick={close}>✕</button>
         </div>
       </div>
       <div className="dshn-tabs">

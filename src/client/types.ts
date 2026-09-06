@@ -1,13 +1,14 @@
 /**
- * dsh-listen-npm —�?客户端共享类型（宿主 API 载荷的客户端视图）�? */
+ * dsh-listen-npm —— 客户端共享类型（宿主 API 载荷的客户端视图）。
+ */
 
-/** 日粒度下载量（api.npmjs.org/downloads/range）�?*/
+/** 日粒度下载量（api.npmjs.org/downloads/range）。 */
 export interface DailyPoint {
   day: string
   downloads: number
 }
 
-/** info op 返回的包完整信息�?*/
+/** info op 返回的包完整信息。 */
 export interface PackageInfoView {
   name: string
   description?: string
@@ -46,7 +47,7 @@ export interface DownloadPointView {
   end: string
 }
 
-/** info op 响应�?*/
+/** info op 响应。 */
 export interface InfoResponse {
   ok: boolean
   code?: string
@@ -63,7 +64,7 @@ export interface InfoResponse {
   }
 }
 
-/** search op 单条结果�?*/
+/** search op 单条结果。 */
 export interface SearchItemView {
   name: string
   version?: string

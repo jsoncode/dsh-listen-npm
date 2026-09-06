@@ -1,6 +1,10 @@
 /**
- * dsh-listen-npm —�?包详情视图（查询 tab 主体）�? *
- * 布局：头部（名称/版本/许可�?操作）→ 描述与链�?�?下载量卡片（突出显示�? * 昨日/�?�?�?0�?近一�?+ 每日安装量柱状图）→ 基本信息 �?dist-tags �? * 依赖 �?版本列表 �?README 摘要�? */
+ * dsh-listen-npm —— 包详情视图（查询 tab 主体）。
+ *
+ * 布局：头部（名称/版本/许可证/操作）→ 描述与链接 → 下载量卡片（突出显示：
+ * 昨日/近7天/近30天/近一年 + 每日安装量柱状图）→ 基本信息 → dist-tags →
+ * 依赖 → 版本列表 → README 摘要。
+ */
 
 import { useState } from 'react'
 import type { InfoResponse } from '../types.ts'
@@ -9,18 +13,18 @@ import { fmtBytes, fmtCompact, fmtDate, fmtDateTime, fmtInt } from '../format.ts
 import { DownloadChart } from './DownloadChart.tsx'
 
 export interface PackageDetailProps {
-  /** info op 完整响应�?*/
+  /** info op 完整响应。 */
   res: InfoResponse
-  /** 是否已在监控列表中�?*/
+  /** 是否已在监控列表中。 */
   watched: boolean
-  /** 加入监控回调（busy 状态由父组件控制）�?*/
+  /** 加入监控回调（busy 状态由父组件控制）。 */
   onWatch(): void
   watchBusy?: boolean
-  /** 加入监控后的提示（成�?失败文本）�?*/
+  /** 加入监控后的提示（成功/失败文本）。 */
   notice?: string
 }
 
-/** 拼一行链接（无值时跳过）�?*/
+/** 拼一行链接（无值时跳过）。 */
 function Links({ res }: { res: InfoResponse }) {
   const info = res.info
   if (!info) return null
@@ -34,13 +38,13 @@ function Links({ res }: { res: InfoResponse }) {
   return (
     <div className="dshn-detail-links">
       {links.map((l) => (
-        <a key={l.label + l.href} className="dshn-link" href={l.href} target="_blank" rel="noreferrer">{l.label} �?/a>
+        <a key={l.label + l.href} className="dshn-link" href={l.href} target="_blank" rel="noreferrer">{l.label} ↗</a>
       ))}
     </div>
   )
 }
 
-/** 依赖块（无依赖显示「无」）�?*/
+/** 依赖块（无依赖显示「无」）。 */
 function DepBlock({ title, deps }: { title: string; deps?: Record<string, string> }) {
   const entries = deps ? Object.entries(deps) : []
   return (
@@ -98,7 +102,7 @@ export function PackageDetail({ res, watched, onWatch, watchBusy, notice }: Pack
         <div className="dshn-card-title">
           {t('downloadsTitle')}
           <span className="dshn-hint">
-            {t('rangeLabel')} {res.rangeStart || '�?} ~ {res.rangeEnd || '�?}
+            {t('rangeLabel')} {res.rangeStart || '—'} ~ {res.rangeEnd || '—'}
           </span>
         </div>
         <div className="dshn-stats">
@@ -139,12 +143,12 @@ export function PackageDetail({ res, watched, onWatch, watchBusy, notice }: Pack
         <div className="dshn-meta">
           <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldCreated')}</span><span className="dshn-meta-val">{fmtDate(info.created)}</span></div>
           <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldModified')}</span><span className="dshn-meta-val">{fmtDateTime(info.modified)}</span></div>
-          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldLatestPublish')}</span><span className="dshn-meta-val">{fmtDateTime(detail?.publishTime)}{detail?.npmUser ? '�? + detail.npmUser + '�? : ''}</span></div>
-          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldVersions')}</span><span className="dshn-meta-val">{info.versionsCount ?? '�?}</span></div>
+          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldLatestPublish')}</span><span className="dshn-meta-val">{fmtDateTime(detail?.publishTime)}{detail?.npmUser ? '（' + detail.npmUser + '）' : ''}</span></div>
+          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldVersions')}</span><span className="dshn-meta-val">{info.versionsCount ?? '—'}</span></div>
           <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldPkgSize')}</span><span className="dshn-meta-val">{fmtBytes(detail?.unpackedSize)}</span></div>
-          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldFileCount')}</span><span className="dshn-meta-val">{detail?.fileCount ?? '�?}</span></div>
-          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldNode')}</span><span className="dshn-meta-val">{detail?.engines?.node || '�?}</span></div>
-          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldMaintainers')}</span><span className="dshn-meta-val">{(info.maintainers || []).map((m) => m.name || m.email || '').filter(Boolean).join(', ') || '�?}</span></div>
+          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldFileCount')}</span><span className="dshn-meta-val">{detail?.fileCount ?? '—'}</span></div>
+          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldNode')}</span><span className="dshn-meta-val">{detail?.engines?.node || '—'}</span></div>
+          <div className="dshn-meta-row"><span className="dshn-meta-key">{t('fieldMaintainers')}</span><span className="dshn-meta-val">{(info.maintainers || []).map((m) => m.name || m.email || '').filter(Boolean).join(', ') || '—'}</span></div>
           {info.author ? <div className="dshn-meta-row"><span className="dshn-meta-key">author</span><span className="dshn-meta-val">{info.author}</span></div> : null}
         </div>
       </div>

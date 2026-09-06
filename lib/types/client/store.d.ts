@@ -1,19 +1,20 @@
 /**
- * dsh-listen-npm —�?浏览器半边：弹框开�?+ footer 胶囊摘要（footer 入口 �?overlay 弹框共享）�? */
+ * dsh-listen-npm —— 浏览器半边：弹框开关 + footer 胶囊摘要（footer 入口 ↔ overlay 弹框共享）。
+ */
 export interface StoreState<T> {
     value: T;
     listeners: Array<() => void>;
     emit(): void;
     subscribe(l: () => void): () => void;
 }
-/** 弹框打开状态：footer 入口 open，overlay 弹框消费�?*/
+/** 弹框打开状态：footer 入口 open，overlay 弹框消费。 */
 export interface ModalStore {
     useOpen(): boolean;
     open(): void;
     close(): void;
 }
 export declare function makeModalStore(): ModalStore;
-/** footer 胶囊摘要：监控数�?+ 有新版本的包数量（来自后台轮询器）�?*/
+/** footer 胶囊摘要：监控数量 + 有新版本的包数量（来自后台轮询器）。 */
 export interface WatchSummary {
     watching: number;
     newVersions: number;
@@ -23,7 +24,7 @@ export interface SummaryStore {
     useSummary(): WatchSummary;
 }
 export declare function makeSummaryStore(): SummaryStore;
-/** 数�?store（宿�?config op �?refreshMinutes 下发通道）�?*/
+/** 数值 store（宿主 config op 的 refreshMinutes 下发通道）。 */
 export interface NumberStore {
     set(n: number): void;
     use(): number;
