@@ -10,7 +10,7 @@ import type { RunFn } from '../rpc.ts'
 import type { ModalStore, WatchSummary } from '../store.ts'
 import type { Poller } from '../poller.ts'
 import { t } from '../i18n.ts'
-import { NPM_LOGO } from '../logo.ts'
+import { NPM_LOGO, logoStyle } from '../logo.ts'
 import { ModalPortal } from './ModalPortal.tsx'
 import { QueryTab } from './QueryTab.tsx'
 import { WatchTab } from './WatchTab.tsx'
@@ -29,6 +29,9 @@ export interface NpmModalProps {
 
 type TabKey = 'query' | 'watch' | 'history'
 
+/** 弹框头部图标边长（px）：与 .dshn-modal-logo 保持一致。 */
+const MODAL_LOGO_SIZE = 30
+
 export function NpmModal({ run, useOpen, close, poller, useSummary, useRefreshMinutes }: NpmModalProps) {
   const open = useOpen()
   const [tab, setTab] = useState<TabKey>('query')
@@ -44,11 +47,7 @@ export function NpmModal({ run, useOpen, close, poller, useSummary, useRefreshMi
     return poller.subscribe(update)
   }, [poller])
 
-  // 打开监控 tab 时清一次新版本未读（footer 橙色胶囊消失）。
-  useEffect(() => {
-    if (open && tab === 'watch') poller.markSeen()
-  }, [open, tab, poller])
-
+  // 未读标记由 WatchTab 打开时静默清除（入口与列表都不展示更新提示）。
   if (!open) return null
 
   const watchedSet = new Set(watchNames)
@@ -56,7 +55,15 @@ export function NpmModal({ run, useOpen, close, poller, useSummary, useRefreshMi
   return (
     <ModalPortal onBackdropClose={close}>
       <div className="dshn-modal-head">
-        <img src={NPM_LOGO} alt="" className="dshn-modal-logo" />
+        <img
+          src={NPM_LOGO}
+          alt=""
+          className="dshn-modal-logo"
+          width={MODAL_LOGO_SIZE}
+          height={MODAL_LOGO_SIZE}
+          style={logoStyle(MODAL_LOGO_SIZE)}
+          draggable={false}
+        />
         <div>
           <div className="dshn-modal-title">{t('modalTitle')}</div>
           <div className="dshn-modal-sub">{t('modalSubtitle')}</div>

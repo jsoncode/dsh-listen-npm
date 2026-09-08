@@ -37,7 +37,7 @@ export interface Poller {
     subscribe(fn: () => void): () => void;
     /** 最近一次缓存列表（监控 tab 首屏）。 */
     getWatch(): WatchEntryView[];
-    /** 清除新版本未读标记（打开监控 tab 时调用）。 */
+    /** 清除新版本未读标记（打开监控 tab 时静默调用，入口不再展示提示）。 */
     markSeen(): void;
     /** 增删监控后调用：置脏并立刻唤醒 tick。 */
     invalidate(): void;

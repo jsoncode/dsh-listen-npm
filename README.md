@@ -14,7 +14,7 @@ watch your own packages for version / download changes.
   30-day daily chart (daily granularity comes straight from the official
   `api.npmjs.org/downloads/range` API)
 - **Watch list**: add packages to monitor; the plugin polls on a configurable
-  interval, records snapshots, flags new versions (footer badge), and shows
+  interval, records snapshots and version changes (see the History tab), and shows
   download trends
 - **Model tools**: `dsh_npm_info`, `dsh_npm_downloads`, `dsh_npm_watch`
 - **Bilingual UI** (zh/en), follows the host language
@@ -24,7 +24,7 @@ watch your own packages for version / download changes.
 ## Preview
 
 A resident **npm Monitor** button sits in the sidebar footer (right above the
-settings area) with capsules for the watch count and new-version alerts. The
+settings area) with a capsule for the watch count. The
 modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
 
 ## Features
@@ -39,17 +39,18 @@ modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
   - dist-tags chips, recent version list (fixed-height scroll), README excerpt
     (rendered as Markdown)
   - One-click **Watch** button
-- **Watch tab** — add/remove packages; each row shows the latest version (with
-  a NEW badge when it changed), day/7-day downloads with trend vs the previous
-  snapshot, a mini bar chart of the last 7 days of daily installs, and the
-  last-check time
+- **Watch tab** — add/remove packages; each row shows the latest version (a plain
+  version number, no "new version" marker), day/7-day downloads with trend vs the
+  previous snapshot, a mini bar chart of the last 7 days of daily installs, and
+  the last-check time
 - **History tab** — snapshot timeline per package (recorded on watch-add and
   version changes): time, version, day/week downloads, change type
 - **Background polling** — the poller runs decoupled from the modal; every
   `refreshMinutes` (host config, default 10) it refreshes the whole watch list
   with 1 lightweight `dist-tags` request + 1 `range/last-week` request per
   package (yesterday / 7-day totals and the mini chart's daily series are both
-  derived from it); new versions light up the amber footer badge until viewed
+  derived from it); a new version is recorded into the snapshots / History
+  timeline with no in-UI notification
 - **Data files** — watch list and snapshots persist to
   `$DSH_HOME/dsh-listen-npm.json` (atomic writes, `.bak` on corruption)
 - **HTTP API** — the browser half talks to `/dsh-listen-npm/api`

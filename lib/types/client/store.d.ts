@@ -14,7 +14,10 @@ export interface ModalStore {
     close(): void;
 }
 export declare function makeModalStore(): ModalStore;
-/** footer 胶囊摘要：监控数量 + 有新版本的包数量（来自后台轮询器）。 */
+/**
+ * footer 胶囊摘要：监控数量 + 有新版本的包数量（来自后台轮询器）。
+ * 入口只展示监控数量；newVersions 保留为内部计数（版本变化只在「历史」tab 体现）。
+ */
 export interface WatchSummary {
     watching: number;
     newVersions: number;

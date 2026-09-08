@@ -2,10 +2,12 @@
  * dsh-listen-npm —— 监控 tab：监控列表的增删与状态总览。
  *
  * - 顶部：添加输入框 + 立即刷新 + 自动刷新间隔说明；
- * - 列表项：包名（点击进查询 tab 看详情）、latest 版本、昨日/近7天下载量
- *   （与上个快照对比的趋势箭头）、右侧近 7 天日安装量迷你柱状图（数据随
- *   刷新响应返回，无额外请求）、新版本未读徽标、刷新失败原因、移除按钮；
- * - 打开 tab 时自动清除新版本未读标记（watchSeen op，footer 橙色胶囊随之消失）。
+ * - 列表项：包名（点击进查询 tab 看详情）、latest 版本（就是普通版本号，不做任何
+ *   「有新版本」标记/高亮）、昨日/近 7 天下载量（与上个快照对比的趋势箭头）、右侧
+ *   近 7 天日安装量迷你柱状图（数据随刷新响应返回，无额外请求）、刷新失败原因、
+ *   移除按钮；
+ * - 打开 tab 时静默清除新版本未读标记（入口已不展示任何更新提示；版本变化只在
+ *   「历史」tab 的快照时间线里体现）。
  */
 
 import { useEffect, useState, type ReactNode } from 'react'
@@ -54,7 +56,7 @@ export function WatchTab({ run, poller, onOpenDetail, refreshMinutes }: WatchTab
     return poller.subscribe(update)
   }, [poller])
 
-  // 打开 tab 即清除「有新版本」未读标记。
+  // 打开 tab 即静默清除「有新版本」未读标记（入口不再展示任何更新提示）。
   useEffect(() => {
     poller.markSeen()
   }, [poller])
@@ -151,7 +153,6 @@ export function WatchTab({ run, poller, onOpenDetail, refreshMinutes }: WatchTab
               <div className="dshn-watch-name">
                 {w.name}
                 {w.lastVersion ? <span className="dshn-watch-ver">{w.lastVersion}</span> : null}
-                {w.hasNewVersion ? <span className="dshn-chip dshn-chip-new">{t('newVersionBadge')}</span> : null}
                 {w.error ? <span className="dshn-chip" title={w.error}>{t('watchErrBadge')}</span> : null}
               </div>
               <div className="dshn-watch-dl">

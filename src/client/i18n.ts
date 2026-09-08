@@ -91,7 +91,6 @@ const COPY: Record<'zh' | 'en', Record<string, unknown>> = {
     watchTrend: '每日安装量（近 7 天，T+1）',
     watchRemove: '移除',
     watchRemoveConfirm: '确认移除对该包的监控？',
-    newVersionBadge: '有新版本',
     watchErrBadge: '刷新失败',
     watchViewDetail: '查看详情',
     watchListCount: '共 {n} 个',
@@ -106,10 +105,8 @@ const COPY: Record<'zh' | 'en', Record<string, unknown>> = {
     historyColNote: '类型',
     historyNoteInit: '加入监控',
     historyNoteVersion: '版本变更',
-    // footer 胶囊
+    // footer 胶囊（只有监控数量）
     footerWatch: '监控中',
-    footerNewVersion: '有更新',
-    footerNewVersionTitle: '监控的包有新版本，点击查看',
     // 错误码映射
     errors: {
       'pkg-not-found': '未找到该 npm 包，请检查包名（大小写敏感）',
@@ -192,7 +189,6 @@ const COPY: Record<'zh' | 'en', Record<string, unknown>> = {
     watchTrend: 'Daily installs (last 7 days, T+1)',
     watchRemove: 'Remove',
     watchRemoveConfirm: 'Remove this package from the watch list?',
-    newVersionBadge: 'NEW',
     watchErrBadge: 'refresh failed',
     watchViewDetail: 'View detail',
     watchListCount: '{n} total',
@@ -207,8 +203,6 @@ const COPY: Record<'zh' | 'en', Record<string, unknown>> = {
     historyNoteInit: 'watch added',
     historyNoteVersion: 'version change',
     footerWatch: 'watching',
-    footerNewVersion: 'UPDATE',
-    footerNewVersionTitle: 'Watched packages have new versions — click to view',
     errors: {
       'pkg-not-found': 'Package not found; check the name (case-sensitive)',
       'pkg-name-invalid': 'Invalid package name',

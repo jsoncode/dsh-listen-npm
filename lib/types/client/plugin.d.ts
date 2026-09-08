@@ -6,8 +6,8 @@
  * external，运行时经 factory 的 require 解析到宿主模块表（seed）。
  *
  * 入口结构：
- * - sidebar.footer.action：常驻「npm 监控」按钮（右侧小胶囊展示监控数量与
- *   「有更新」提示），点击打开统一弹框；
+ * - sidebar.footer.action：常驻「npm 监控」按钮（右侧小胶囊只显示监控数量，
+ *   不做任何版本更新提示），点击打开统一弹框；
  * - shell.overlay（dsh-listen-npm）：统一弹框，三个 tab —— 查询 / 监控 / 历史；
  * - conversation.chat.commandview：兜底隐藏对话中显式执行命令的内部 JSON 卡片。
  *

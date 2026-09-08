@@ -4,6 +4,8 @@
  */
 
 const CSS_ID = 'dsh-listen-npm/settings.css'
+/** 宿主 loader 条目名：style 标签按它归属（HMR 重载时回收，见 injectStyles 注释）。 */
+const PLUGIN_ID = 'dsh-listen-npm'
 
 export const css = [
   // ── 通用控件 ────────────────────────────────────────────────────
@@ -36,15 +38,16 @@ export const css = [
   '.dshn-footer-btn{box-sizing:border-box;cursor:pointer;width:calc(100% + 4px);height:42px;color:var(--dsw-alias-label-primary);background:transparent;border:none;border-radius:12px;flex:none;align-items:center;gap:8px;margin:4px -2px;padding:0 10px 0 8px;font-family:inherit;font-size:14px;line-height:22px;display:flex;overflow:hidden}',
   '.dshn-footer-btn:hover{background:var(--dsw-alias-interactive-bg-hover)}',
   '.dshn-footer-btn-rail{border-radius:50%;justify-content:center;gap:0;width:36px;height:36px;margin:8px 0 10px;padding:0}',
-  '.dshn-footer-logo{height:26px;width:26px;flex:none;display:block;object-fit:contain;border-radius:6px;pointer-events:none}',
+  // 图标尺寸三重保险：这里的选择器（含 .dshn-footer-btn img，比宿主 img 规则
+  // 特异性高）+ img 的 width/height 属性 + 组件内联 style。任一层失效都不会
+  // 让 <img> 退回 SVG 的默认替换元素尺寸（300×150）把按钮撑爆。
+  '.dshn-footer-logo,.dshn-footer-btn img{height:26px;width:26px;max-width:26px;max-height:26px;flex:none;display:block;object-fit:contain;border-radius:6px;pointer-events:none}',
   '.dshn-footer-label{white-space:nowrap;overflow:hidden}',
   '.dshn-footer-caps{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:4px;z-index:2;pointer-events:none}',
   '.dshn-footer-rail-group .dshn-footer-caps{position:static;transform:none;justify-content:center;margin-top:-4px}',
   '.dshn-capsule{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;border-radius:999px;font-size:10px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums;box-sizing:border-box;white-space:nowrap}',
-  // 监控数量：中性蓝描边胶囊
+  // 监控数量：中性蓝描边胶囊（入口唯一的胶囊）
   '.dshn-capsule-watch{color:var(--dsw-alias-brand-primary,#1668e3);border:1px solid color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 55%,transparent);background:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 12%,transparent)}',
-  // 有新版本：琥珀橙实心胶囊（醒目提醒）
-  '.dshn-capsule-new{color:#4a3500;background:#f0b429;border:1px solid color-mix(in srgb,#f0b429 60%,#fff)}',
 
   // ── 弹框骨架 ────────────────────────────────────────────────────
   // 背景令牌必须用宿主真实存在的 bg-layer-1（与 dsh-jenkins 的 .dshj-modal 同源；
@@ -53,7 +56,7 @@ export const css = [
   '.dshn-backdrop{position:fixed;inset:0;z-index:1000;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;-webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px)}',
   '.dshn-modal{background:color-mix(in srgb,var(--dsw-alias-bg-layer-1,#fff) 92%,transparent);color:var(--dsw-alias-label-primary,#222);border:1px solid var(--dsw-alias-border-l2,#ddd);border-radius:16px;box-shadow:0 18px 50px rgba(0,0,0,.25);width:min(980px,94vw);height:min(760px,88vh);display:flex;flex-direction:column;overflow:hidden;-webkit-backdrop-filter:blur(24px) saturate(1.5);backdrop-filter:blur(24px) saturate(1.5)}',
   '.dshn-modal-head{display:flex;align-items:center;gap:10px;padding:14px 18px 10px;border-bottom:1px solid var(--dsw-alias-border-l1,#eee);flex:none}',
-  '.dshn-modal-logo{height:30px;width:30px;border-radius:8px;flex:none}',
+  '.dshn-modal-logo,.dshn-modal-head img.dshn-modal-logo{height:30px;width:30px;max-width:30px;max-height:30px;border-radius:8px;flex:none;display:block;object-fit:contain}',
   '.dshn-modal-title{font-size:15px;font-weight:700;line-height:20px}',
   '.dshn-modal-sub{font-size:12px;color:var(--dsw-alias-label-secondary,#888);line-height:17px;margin-top:2px}',
   '.dshn-modal-head-ops{margin-left:auto;display:flex;align-items:center;gap:8px}',
@@ -84,7 +87,6 @@ export const css = [
   '.dshn-detail-ver{display:inline-flex;align-items:center;gap:6px;margin-left:8px}',
   '.dshn-chip{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:999px;font-size:11px;line-height:16px;border:1px solid var(--dsw-alias-border-l2,#ddd);color:var(--dsw-alias-label-secondary,#666);white-space:nowrap}',
   '.dshn-chip-latest{color:var(--dsw-alias-brand-primary,#1668e3);border-color:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 45%,transparent);background:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 10%,transparent);font-weight:600}',
-  '.dshn-chip-new{color:#4a3500;background:#f0b429;border-color:transparent;font-weight:700}',
   '.dshn-detail-desc{color:var(--dsw-alias-label-secondary,#666);font-size:13px;line-height:1.6;margin-top:4px}',
   '.dshn-detail-links{display:flex;gap:12px;flex-wrap:wrap;margin-top:8px}',
   '.dshn-card{border:1px solid var(--dsw-alias-border-l1,#eee);border-radius:12px;padding:14px;margin-top:14px;background:color-mix(in srgb,var(--dsw-alias-bg-layer-2,#fafafa) 60%,transparent)}',
@@ -175,13 +177,31 @@ export const css = [
   '@supports not ((-webkit-backdrop-filter: blur(1px)) or (backdrop-filter: blur(1px))){.dshn-modal,.dshn-search-pop{background:var(--dsw-alias-bg-layer-1,#fff)}.dshn-card,.dshn-stat,.dshn-watch-item{background:var(--dsw-alias-bg-layer-2,#fafafa)}.dshn-input,.dshn-select{background:var(--dsw-alias-bg-base,#fff)}}',
 ]
 
-/** 幂等注入样式（style id 去重）。 */
+/**
+ * 幂等注入样式。
+ *
+ * 关键：style 标签必须自带 data-plugin / data-plugin-css 标记（对齐宿主自带的
+ * CSS 注入形态）。宿主的 client-modules 在**物化每个插件**时会执行
+ * `claimStyles(id)`：把 `style:not([data-plugin])` 全部认领给当前物化的插件；
+ * 而 client-hmr 重载某插件时执行 `removeOwnedStyles(id)`：删除所有
+ * `style[data-plugin=id]`。本插件的 apply 在物化之后才跑，裸 style 标签会被
+ * **下一个**物化的插件认领 —— 那个插件一热重载，本插件的 CSS 就被连带删除，
+ * 于是 footerAction 图标失去 `.dshn-footer-logo` 尺寸规则、退回 SVG 的默认
+ * 替换元素尺寸（300×150）把按钮撑爆。预打标记后谁都不会误认领/误删。
+ *
+ * 同时做成可重复调用的看门狗：内容一致时零成本短路，标签缺失时补回。
+ */
 export function injectStyles(): void {
   if (typeof document === 'undefined') return
-  const existing = document.getElementById(CSS_ID)
-  if (existing !== null) existing.remove()
+  const text = css.join('\n')
+  const existing = document.querySelector('style[data-plugin-css="' + CSS_ID + '"]')
+  if (existing !== null) {
+    if (existing.textContent !== text) existing.textContent = text
+    return
+  }
   const style = document.createElement('style')
-  style.id = CSS_ID
-  style.textContent = css.join('\n')
+  style.setAttribute('data-plugin', PLUGIN_ID)
+  style.setAttribute('data-plugin-css', CSS_ID)
+  style.textContent = text
   document.head.appendChild(style)
 }

@@ -6,8 +6,8 @@
  * external，运行时经 factory 的 require 解析到宿主模块表（seed）。
  *
  * 入口结构：
- * - sidebar.footer.action：常驻「npm 监控」按钮（右侧小胶囊展示监控数量与
- *   「有更新」提示），点击打开统一弹框；
+ * - sidebar.footer.action：常驻「npm 监控」按钮（右侧小胶囊只显示监控数量，
+ *   不做任何版本更新提示），点击打开统一弹框；
  * - shell.overlay（dsh-listen-npm）：统一弹框，三个 tab —— 查询 / 监控 / 历史；
  * - conversation.chat.commandview：兜底隐藏对话中显式执行命令的内部 JSON 卡片。
  *
@@ -97,7 +97,12 @@ export function createPlugin(): ClientPluginModule {
       // ─── 后台轮询器：监控列表自动刷新 + footer 摘要 ───────────────
       // 启动引导拉取 config（刷新间隔）与当前监控列表；到点自动 watchRefresh。
       const poller = createPoller(runWithSession, summaryStore)
-      ctx.interval(() => poller.tick(), 3000)
+      // 3s 心跳：轮询器到点刷新监控列表；同时兼作样式看门狗 —— 宿主 client-hmr
+      // 重载插件时会回收本插件的 <style>（data-plugin 归属），此处按需补回。
+      ctx.interval(() => {
+        injectStyles()
+        poller.tick()
+      }, 3000)
       poller.bootstrap()
       void runWithSession('', { op: 'config' }).then((cfg) => {
         if (cfg && cfg.ok && typeof cfg.refreshMinutes === 'number' && cfg.refreshMinutes > 0) {
