@@ -6,6 +6,11 @@
  * 版本变化**不在入口做任何提示**（没有「有更新」标签，也没有版本号胶囊），
  * 只在「历史」tab 的快照时间线里体现。
  *
+ * 显隐跟随「在菜单中显示」偏好（prefs.ts 的 showInMenuStore，默认开启）：
+ * 关闭后本组件渲染 null（不占位、不订阅轮询摘要）。偏好源与宿主
+ * 「设置 → npm 监控」分区页、插件弹框「监控」tab 顶部的开关同一个，
+ * 改一处即刻生效，无需刷新页面。
+ *
  * 图标尺寸：img 带 width/height 属性 + 内联 style 兜底（见 logo.ts）。宿主
  * 样式表缺失/被回收时，图标也不会退回 SVG 的默认替换元素尺寸把按钮撑爆。
  */
@@ -22,5 +27,5 @@ export interface FooterButtonProps {
     /** 后台轮询器：摘要数据源。 */
     poller?: Poller;
 }
-export declare function FooterButton({ onOpen, reportSession, wide, useSessions, poller }: FooterButtonProps): import("react").JSX.Element;
+export declare function FooterButton({ onOpen, reportSession, wide, useSessions, poller }: FooterButtonProps): import("react").JSX.Element | null;
 //# sourceMappingURL=FooterButton.d.ts.map

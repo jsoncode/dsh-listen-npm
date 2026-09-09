@@ -45,6 +45,16 @@ modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
   the last-check time
 - **History tab** — snapshot timeline per package (recorded on watch-add and
   version changes): time, version, day/week downloads, change type
+- **Entry visibility** — the sidebar footer entry follows a **Show in menu**
+  preference (default on), toggled from **Settings → npm Monitor** or the top of
+  the Watch tab. When off the entry renders nothing; the host settings page keeps
+  an **Open npm Monitor** button so the modal stays reachable (both places share
+  one preference source and stay in sync).
+- **Dialog palette** — the modal follows dsh-get-balance: a `rgba(0,0,0,.32)` scrim
+  with `blur(12px) saturate(1.2)`, a `color-mix(bg-layer-1 78%)` glass panel with a
+  `border-l2` hairline and 14px radius, `border-l1` dividers, solid
+  `button-primary-fill` primary buttons and active tabs, `bg-base` inputs and search
+  popover, `bg-layer-2` cards, and `state-*` tokens for status colours.
 - **Background polling** — the poller runs decoupled from the modal; every
   `refreshMinutes` (host config, default 10) it refreshes the whole watch list
   with 1 lightweight `dist-tags` request + 1 `range/last-week` request per

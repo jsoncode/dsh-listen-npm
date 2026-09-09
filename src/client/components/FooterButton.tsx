@@ -6,12 +6,18 @@
  * 版本变化**不在入口做任何提示**（没有「有更新」标签，也没有版本号胶囊），
  * 只在「历史」tab 的快照时间线里体现。
  *
+ * 显隐跟随「在菜单中显示」偏好（prefs.ts 的 showInMenuStore，默认开启）：
+ * 关闭后本组件渲染 null（不占位、不订阅轮询摘要）。偏好源与宿主
+ * 「设置 → npm 监控」分区页、插件弹框「监控」tab 顶部的开关同一个，
+ * 改一处即刻生效，无需刷新页面。
+ *
  * 图标尺寸：img 带 width/height 属性 + 内联 style 兜底（见 logo.ts）。宿主
  * 样式表缺失/被回收时，图标也不会退回 SVG 的默认替换元素尺寸把按钮撑爆。
  */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useSyncExternalStore } from 'react'
 import { t } from '../i18n.ts'
+import { showInMenuStore } from '../prefs.ts'
 import type { Poller } from '../poller.ts'
 import type { WatchSummary } from '../store.ts'
 import { NPM_LOGO, logoStyle } from '../logo.ts'
@@ -33,18 +39,28 @@ const EMPTY_SUMMARY: WatchSummary = { watching: 0, newVersions: 0 }
 const LOGO_SIZE = 26
 
 export function FooterButton({ onOpen, reportSession, wide = false, useSessions, poller }: FooterButtonProps) {
+  // 「在菜单中显示」偏好：必须在任何提前 return 之前调用（hooks 顺序稳定）。
+  // 第三个参数（getServerSnapshot）供 SSR / 静态渲染测试使用；浏览器行为不变。
+  const visible = useSyncExternalStore(
+    showInMenuStore.subscribe,
+    showInMenuStore.getSnapshot,
+    showInMenuStore.getSnapshot,
+  )
   const currentSessionId = useSessions
     ? (useSessions((s) => s && s.current) as string | undefined)
     : null
+  // 会话 id 上报与入口显隐无关：后台轮询器依赖它。
   if (reportSession && currentSessionId) reportSession(currentSessionId)
-  // 订阅轮询器：每次刷新后更新监控数量胶囊
+  // 订阅轮询器：每次刷新后更新监控数量胶囊（入口隐藏时不订阅）
   const [summary, setSummary] = useState<WatchSummary>(EMPTY_SUMMARY)
   useEffect(() => {
-    if (!poller) return
+    if (!poller || !visible) return
     const update = (): void => { setSummary(poller.getSummary()) }
     update()
     return poller.subscribe(update)
-  }, [poller])
+  }, [poller, visible])
+  // 关闭「在菜单中显示」后不渲染任何内容（放在所有 hooks 之后，顺序稳定）。
+  if (!visible) return null
   const showWatch = summary.watching > 0
   return (
     <div className={'dshn-footer-group' + (wide ? '' : ' dshn-footer-rail-group')}>

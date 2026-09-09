@@ -7,7 +7,10 @@
  *
  * 入口结构：
  * - sidebar.footer.action：常驻「npm 监控」按钮（右侧小胶囊只显示监控数量，
- *   不做任何版本更新提示），点击打开统一弹框；
+ *   不做任何版本更新提示），点击打开统一弹框；显隐跟随「在菜单中显示」偏好
+ *   （默认开启）；
+ * - settings.section（dsh-listen-npm）：宿主「设置 → npm 监控」分区页 ——
+ *   「在菜单中显示」开关 + 打开插件弹框的入口（footer 入口关闭后的唯一入口）；
  * - shell.overlay（dsh-listen-npm）：统一弹框，三个 tab —— 查询 / 监控 / 历史；
  * - conversation.chat.commandview：兜底隐藏对话中显式执行命令的内部 JSON 卡片。
  *
@@ -21,6 +24,7 @@ import { makeRun, type RunFn } from './rpc.ts'
 import { makeModalStore, makeNumberStore, makeSummaryStore } from './store.ts'
 import { createPoller } from './poller.ts'
 import { FooterButton } from './components/FooterButton.tsx'
+import { PluginSettingsPage } from './components/PluginSettingsPage.tsx'
 import { NpmModal } from './components/NpmModal.tsx'
 import { t, setLang } from './i18n.ts'
 
@@ -34,6 +38,9 @@ interface SlotsService {
 const FOOTER_SLOT = 'sidebar.footer.action'
 const FOOTER_ENTRY_ID = 'dsh-listen-npm'
 const OVERLAY_ID = 'dsh-listen-npm'
+
+/** 宿主设置对话框里本插件分区页的注册 id（settings.section 的 only 过滤键）。 */
+const SECTION_ID = 'dsh-listen-npm'
 
 /** 浏览器侧插件上下文（宿主注入）。 */
 export interface ClientCtx {
@@ -129,6 +136,26 @@ export function createPlugin(): ClientPluginModule {
             wide={props.wide as boolean | undefined}
             useSessions={props.useSessions as FooterWorkspaceHooks['useSessions']}
             poller={poller}
+          />
+        ),
+      ))
+
+      // ─── 宿主「设置 → npm 监控」分区页（settings.section）──────────
+      // 页面承载「在菜单中显示」开关（与 footer 入口同一偏好源）+ 打开插件
+      // 弹框的入口：侧栏入口被关闭后，这里是唯一可达入口。order 43 排在宿主
+      // 内置 sections 与 dsh-jenkins（order 41）之后；label 用本插件既有的
+      // 导航文案 key（与 footer 入口同名，跟随界面语言）。
+      slots.inject('settings.section', () => slots.register(
+        {
+          name: 'settings.section',
+          id: SECTION_ID,
+          order: 43,
+          label: () => t('configBtn'),
+        },
+        (props: Record<string, unknown>) => (
+          <PluginSettingsPage
+            onOpen={openModal}
+            close={typeof props.close === 'function' ? (props.close as () => void) : () => { /* 宿主未提供 close 时忽略 */ }}
           />
         ),
       ))

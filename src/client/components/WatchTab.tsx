@@ -1,7 +1,9 @@
 /**
  * dsh-listen-npm —— 监控 tab：监控列表的增删与状态总览。
  *
- * - 顶部：添加输入框 + 立即刷新 + 自动刷新间隔说明；
+ * - 顶部：「在菜单中显示」开关（与宿主「设置 → npm 监控」分区页同一偏好源，
+ *   控制侧栏 footerAction 入口按钮的显隐）+ 添加输入框 + 立即刷新 + 自动刷新
+ *   间隔说明；
  * - 列表项：包名（点击进查询 tab 看详情）、latest 版本（就是普通版本号，不做任何
  *   「有新版本」标记/高亮）、昨日/近 7 天下载量（与上个快照对比的趋势箭头）、右侧
  *   近 7 天日安装量迷你柱状图（数据随刷新响应返回，无额外请求）、刷新失败原因、
@@ -15,6 +17,7 @@ import type { RunFn } from '../rpc.ts'
 import type { Poller, WatchEntryView } from '../poller.ts'
 import { t, tErr } from '../i18n.ts'
 import { fmtCompact, fmtInt, fmtRel } from '../format.ts'
+import { ShowInMenuToggle } from './ShowInMenuToggle.tsx'
 
 /** 迷你日安装量柱状图（近 7 天，随刷新更新；每根柱带原生 tooltip）。 */
 function MiniTrend({ daily }: { daily?: WatchEntryView['daily'] }) {
@@ -118,6 +121,7 @@ export function WatchTab({ run, poller, onOpenDetail, refreshMinutes }: WatchTab
 
   return (
     <div>
+      <ShowInMenuToggle />
       <div className="dshn-watch-bar">
         <input
           className="dshn-input"

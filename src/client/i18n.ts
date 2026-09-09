@@ -28,6 +28,9 @@ export const setLang = (next: 'zh' | 'en'): void => {
 const COPY: Record<'zh' | 'en', Record<string, unknown>> = {
   zh: {
     configBtn: 'npm 监控',
+    showInMenu: '在菜单中显示',
+    showInMenuDesc: '开启后，在宿主侧栏底部显示「npm 监控」入口按钮',
+    openPlugin: '打开 npm 监控',
     modalTitle: 'npm 包监控',
     modalSubtitle: '查询包信息与每日安装量，跟踪你的 npm 库的变化',
     tabQuery: '查询',
@@ -129,6 +132,9 @@ const COPY: Record<'zh' | 'en', Record<string, unknown>> = {
   },
   en: {
     configBtn: 'npm Monitor',
+    showInMenu: 'Show in menu',
+    showInMenuDesc: 'When on, an npm Monitor entry button appears at the bottom of the host sidebar',
+    openPlugin: 'Open npm Monitor',
     modalTitle: 'npm Package Monitor',
     modalSubtitle: 'Query package info with daily install counts and track changes of your npm libraries',
     tabQuery: 'Query',
