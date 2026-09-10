@@ -31,8 +31,9 @@ modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
 
 - **Query tab** — type a package name (or paste an npmjs.com link): debounced
   suggestions from the registry search API, full detail on Enter / click:
-  - Download stats card: **yesterday / last 7 days / last 30 days / last year**
-    (yesterday is the hero stat) plus a 30-day daily bar chart with peak,
+  - Download stats card: **latest day / last 7 days / last 30 days / last year**
+    (latest reported day is the hero stat; when npm's data lags, the label shows
+    the real date plus the lag in days) plus a 30-day daily bar chart with peak,
     average line, and per-bar tooltips
   - Basic info: first publish, last update, latest publish (+publisher), total
     versions, unpacked size, file count, node engines, maintainers
@@ -40,11 +41,12 @@ modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
     (rendered as Markdown)
   - One-click **Watch** button
 - **Watch tab** — add/remove packages; each row shows the latest version (a plain
-  version number, no "new version" marker), day/7-day downloads with trend vs the
-  previous snapshot, a mini bar chart of the last 7 days of daily installs, and
-  the last-check time
+  version number, no "new version" marker), latest-day/7-day downloads with trend vs
+  the previous snapshot, a mini bar chart of the last 7 days of daily installs
+  (days npm has not reported yet show as grey placeholder bars, keeping the dates
+  continuous), and the last-check time
 - **History tab** — snapshot timeline per package (recorded on watch-add and
-  version changes): time, version, day/week downloads, change type
+  version changes): time, version, latest-day/week downloads, change type
 - **Entry visibility** — the sidebar footer entry follows a **Show in menu**
   preference (default on), toggled from **Settings → npm Monitor** or the top of
   the Watch tab. When off the entry renders nothing; the host settings page keeps
@@ -53,12 +55,14 @@ modal has three tabs: **Query** (search + full detail), **Watch**, **History**.
 - **Dialog palette** — the modal follows dsh-get-balance: a `rgba(0,0,0,.32)` scrim
   with `blur(12px) saturate(1.2)`, a `color-mix(bg-layer-1 78%)` glass panel with a
   `border-l2` hairline and 14px radius, `border-l1` dividers, solid
-  `button-primary-fill` primary buttons and active tabs, `bg-base` inputs and search
+  `button-primary-fill` primary buttons, a **semi-transparent** `button-primary-fill 18%`
+  capsule (plus a 30% outline) for the active tab — whitish in dark theme, and unchanged
+  on hover once selected — `bg-base` inputs and search
   popover, `bg-layer-2` cards, and `state-*` tokens for status colours.
 - **Background polling** — the poller runs decoupled from the modal; every
   `refreshMinutes` (host config, default 10) it refreshes the whole watch list
   with 1 lightweight `dist-tags` request + 1 `range/last-week` request per
-  package (yesterday / 7-day totals and the mini chart's daily series are both
+  package (latest-day / 7-day totals and the mini chart's daily series are both
   derived from it); a new version is recorded into the snapshots / History
   timeline with no in-UI notification
 - **Data files** — watch list and snapshots persist to
@@ -80,8 +84,18 @@ refreshMinutes: 10                        # watch list auto refresh interval
 ## Data notes
 
 - Daily granularity comes from `api.npmjs.org/downloads/range`; npm aggregates
-  downloads per day with a T+1 delay, so "yesterday" means the last completed
-  day npm has published.
+  downloads per day with a T+N delay (3-4 days in practice), so **the last day
+  with data is not necessarily yesterday**.
+- **Continuity**: every series is padded through "yesterday" (local time) — days the
+  API skips inside its window become 0, and days npm has not reported yet become 0
+  flagged `pending` (drawn as grey dashed bars, capped at 14 days), so the date axis
+  never stops a few days short. Padded days exist only to keep the calendar
+  continuous.
+- **Aggregation**: latest-day / last-7-day / last-30-day totals count **real data
+  days only** (window ending on the last day with data), so npm's reporting lag can
+  never deflate them into fake zeros; the tiles show the actual cut-off date (the
+  label reads "Yesterday" only when the data really is that fresh) plus a line
+  naming the days npm has not reported yet.
 - Scoped packages (`@scope/name`) are supported everywhere; the registry path
   URL-encodes the slash while the downloads API uses it raw.
 - The full registry doc is fetched once per query (react ≈ 7 MB) — the curl
@@ -91,6 +105,7 @@ refreshMinutes: 10                        # watch list auto refresh interval
 
 ```
 ├── src/host/*.ts         # host half: index.ts (entry), npm.ts (curl core), ops.ts (op dispatch), store.ts, fence.ts, types.ts
+├── src/shared/*.ts       # pure logic shared by both halves (daily.ts: calendar padding)
 ├── src/client/*.tsx      # browser half (React TSX): plugin.tsx, i18n, styles, rpc, store, poller, components/*
 ├── lib/index.js          # host half build artifact (tsdown, ESM), committed for git installs
 ├── lib/client.js         # browser half build artifact (tsdown → __ModuleLoader__ factory), committed

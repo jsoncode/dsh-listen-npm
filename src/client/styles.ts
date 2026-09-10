@@ -46,8 +46,11 @@ export const css = [
   '.dshn-footer-caps{position:absolute;right:10px;top:50%;transform:translateY(-50%);display:flex;align-items:center;gap:4px;z-index:2;pointer-events:none}',
   '.dshn-footer-rail-group .dshn-footer-caps{position:static;transform:none;justify-content:center;margin-top:-4px}',
   '.dshn-capsule{display:inline-flex;align-items:center;justify-content:center;min-width:16px;height:16px;padding:0 5px;border-radius:999px;font-size:10px;line-height:1;font-weight:700;font-variant-numeric:tabular-nums;box-sizing:border-box;white-space:nowrap}',
-  // 监控数量：中性蓝描边胶囊（入口唯一的胶囊）
+  // 监控数量：中性蓝描边胶囊
   '.dshn-capsule-watch{color:var(--dsw-alias-brand-primary,#1668e3);border:1px solid color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 55%,transparent);background:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 12%,transparent)}',
+  // 注意：这里**不要**再给选中态 tab 加胶囊反色规则。选中态 tab 现在只是「半透明主色底」
+  // （不是实心 brand 底），胶囊用 brand 字/brand 半透明底在两种主题下都有足够对比；
+  // 若哪天把选中底改回实心 brand 底，就必须同时给胶囊反色，否则数字与底同色看不见。
 
   // ── 宿主设置分区页 + 「在菜单中显示」滑动开关行 ─────────────────
   // 开关行同时用在宿主「设置 → npm 监控」分区页顶部与弹框「监控」tab 顶部。
@@ -78,11 +81,14 @@ export const css = [
   '.dshn-modal-sub{font-size:12px;color:var(--dsw-alias-label-secondary,#888);line-height:17px;margin-top:2px}',
   '.dshn-modal-head-ops{margin-left:auto;display:flex;align-items:center;gap:8px}',
   '.dshn-modal-hint{font-size:11px;color:var(--dsw-alias-label-tertiary,#aaa);margin-left:auto;white-space:nowrap}',
-  // tab：未选中透明 + 次级文字，选中为实心主色胶囊（对齐 dsh-get-balance .dshb-tab）
+  // tab：未选中透明 + 次级文字，选中为「半透明主色胶囊」（暗色主题下即偏白半透明、
+  // 亮色主题下偏浅灰），不再用实心 brand 底。
+  // hover 必须排除选中项：`.dshn-tab:hover` 特异性 (0,2,0) 高于 `.dshn-tab-active`
+  // (0,1,0)，否则鼠标一移入选中项，实底就会被换成一层半透明灰（看起来像取消选中）。
   '.dshn-tabs{display:flex;gap:6px;padding:10px 18px;border-bottom:1px solid var(--dsw-alias-border-l1,#eee);flex:none}',
   '.dshn-tab{border:1px solid transparent;background:transparent;color:var(--dsw-alias-label-secondary,#666);font-size:13px;padding:5px 12px;cursor:pointer;border-radius:8px;white-space:nowrap}',
-  '.dshn-tab:hover{background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.1))}',
-  '.dshn-tab-active{background:var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary,#1668e3));color:var(--dsw-alias-label-primary-foreground,#fff);border-color:transparent;font-weight:500}',
+  '.dshn-tab:hover:not(.dshn-tab-active){background:var(--dsw-alias-interactive-bg-hover,rgba(128,128,128,.1))}',
+  '.dshn-tab-active{background:rgba(128,128,128,.18);background:color-mix(in srgb,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary,#1668e3)) 18%,transparent);color:var(--dsw-alias-label-primary,#222);border-color:color-mix(in srgb,var(--dsw-alias-button-primary-fill,var(--dsw-alias-brand-primary,#1668e3)) 30%,transparent);font-weight:500}',
   '.dshn-modal-body{flex:1;min-height:0;overflow-y:auto;padding:14px 18px 18px}',
   '.dshn-modal-foot{flex:none;display:flex;align-items:center;gap:10px;padding:8px 18px;border-top:1px solid var(--dsw-alias-border-l1,#eee);font-size:11px;color:var(--dsw-alias-label-tertiary,#aaa)}',
 
@@ -109,13 +115,15 @@ export const css = [
   '.dshn-card{border:1px solid var(--dsw-alias-border-l1,#eee);border-radius:12px;padding:14px;margin-top:14px;background:var(--dsw-alias-bg-layer-2,#fafafa)}',
   '.dshn-card-title{font-size:13px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:8px}',
   '.dshn-card-title .dshn-hint{font-weight:400;font-size:11px;color:var(--dsw-alias-label-tertiary,#aaa)}',
-  // 下载量统计瓦片：突出显示，昨日为焦点
+  // 下载量统计瓦片：突出显示，最新单日为焦点
   '.dshn-stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}',
   '.dshn-stat{border:1px solid var(--dsw-alias-border-l1,#eee);border-radius:10px;padding:10px 12px;background:var(--dsw-alias-bg-layer-2,#fafafa)}',
   '.dshn-stat-hero{border-color:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 35%,transparent);background:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 8%,transparent)}',
   '.dshn-stat-label{font-size:11px;color:var(--dsw-alias-label-secondary,#888)}',
   '.dshn-stat-value{font-size:20px;font-weight:700;font-variant-numeric:tabular-nums;margin-top:2px;line-height:26px;word-break:break-all}',
   '.dshn-stat-sub{font-size:10px;color:var(--dsw-alias-label-tertiary,#aaa);margin-top:2px;font-variant-numeric:tabular-nums}',
+  // 统计延迟说明（npm 尚未统计的日期按 0 补齐，不计入合计）
+  '.dshn-note{margin-top:10px;padding:7px 10px;border-radius:8px;font-size:11.5px;line-height:1.6;color:var(--dsw-alias-label-secondary,#777);background:color-mix(in srgb,var(--dsw-alias-state-warn-primary,#f59e0b) 12%,transparent);border:1px solid color-mix(in srgb,var(--dsw-alias-state-warn-primary,#f59e0b) 30%,transparent)}',
   // 图表
   '.dshn-chart-wrap{margin-top:12px}',
   '.dshn-chart-svg{width:100%;height:auto;display:block}',
@@ -123,6 +131,10 @@ export const css = [
   '.dshn-chart-bar:hover{opacity:1}',
   '.dshn-chart-bar-last{fill:var(--dsw-alias-state-success-primary,#2a7d3c);opacity:1}',
   '.dshn-chart-bar-peak{opacity:1}',
+  // 尾部尚未统计的日期：灰色矮柱 + 虚线描边（画出来只为日期连续，不代表 0 下载）
+  '.dshn-chart-bar-pending{fill:none;stroke:var(--dsw-alias-label-tertiary,#bbb);stroke-width:1;stroke-dasharray:2 2;opacity:.75}',
+  '.dshn-chart-bar-pending:hover{opacity:1}',
+  '.dshn-chart-split{stroke:var(--dsw-alias-border-l2,#ddd);stroke-width:1;stroke-dasharray:3 4}',
   '.dshn-chart-grid{stroke:var(--dsw-alias-border-l1,#eee);stroke-width:1}',
   '.dshn-chart-avg{stroke:var(--dsw-alias-state-warn-primary,#b8860b);stroke-width:1;stroke-dasharray:4 3}',
   '.dshn-chart-text{fill:var(--dsw-alias-label-tertiary,#999);font-size:10px;font-family:inherit}',
@@ -174,11 +186,15 @@ export const css = [
   '.dshn-watch-dl{font-size:12px;color:var(--dsw-alias-label-secondary,#888);margin-top:3px;font-variant-numeric:tabular-nums;display:flex;gap:14px;flex-wrap:wrap}',
   '.dshn-delta-up{color:var(--dsw-alias-state-success-primary,#2a7d3c)}',
   '.dshn-delta-down{color:var(--dsw-alias-state-error-primary,#d33)}',
-  // 迷你日安装量柱状图（列表项右侧）：柱体沿底部对齐，最后一根（昨日）绿色高亮
+  // 迷你日安装量柱状图（列表项右侧）：柱体沿底部对齐，最后一根真实数据日绿色高亮
   '.dshn-trend{display:flex;align-items:flex-end;gap:2px;height:28px;flex:none;padding:2px 2px 0}',
   '.dshn-trend-bar{display:block;width:5px;min-height:2px;border-radius:2px 2px 0 0;background:color-mix(in srgb,var(--dsw-alias-brand-primary,#1668e3) 55%,transparent)}',
   '.dshn-trend-bar:hover{background:var(--dsw-alias-brand-primary,#1668e3)}',
   '.dshn-trend-bar-last{background:var(--dsw-alias-state-success-primary,#2a7d3c)}',
+  // 尾部尚未统计的日期：灰色虚线柱（保持近 7 天窗口的日历连续）
+  '.dshn-trend-bar-pending{background:transparent;border:1px dashed var(--dsw-alias-label-tertiary,#bbb);border-bottom:none;box-sizing:border-box}',
+  '.dshn-trend-bar-pending:hover{background:color-mix(in srgb,var(--dsw-alias-label-tertiary,#bbb) 35%,transparent)}',
+  '.dshn-watch-dl .dshn-hint{color:var(--dsw-alias-label-tertiary,#aaa)}',
   '.dshn-watch-ops{display:flex;align-items:center;gap:6px;flex:none}',
 
   // ── 历史 tab ────────────────────────────────────────────────────

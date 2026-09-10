@@ -64,9 +64,15 @@ function openStore(raw: string): NpmStoreData {
         prevWeek: typeof w.prevWeek === 'number' ? w.prevWeek : undefined,
         daily: Array.isArray(w.daily)
           ? (w.daily as Array<Record<string, unknown>>)
-            .map((p) => ({ day: typeof (p as { day?: unknown }).day === 'string' ? String((p as { day: string }).day) : '', downloads: typeof (p as { downloads?: unknown }).downloads === 'number' ? Number((p as { downloads: number }).downloads) : 0 }))
+            .map((p) => ({
+              day: typeof (p as { day?: unknown }).day === 'string' ? String((p as { day: string }).day) : '',
+              downloads: typeof (p as { downloads?: unknown }).downloads === 'number' ? Number((p as { downloads: number }).downloads) : 0,
+              // pending=true 表示该日 npm 尚未统计（序列补齐的 0）：回读时必须保留，
+              // 否则客户端会把补齐日当成真实数据日，聚合口径又偏了。
+              ...((p as { pending?: unknown }).pending === true ? { pending: true } : {}),
+            }))
             .filter((p) => p.day.length > 0)
-            .slice(-14)
+            .slice(-21)
           : undefined,
         hasNewVersion: w.hasNewVersion === true,
         error: typeof w.error === 'string' ? w.error : undefined,

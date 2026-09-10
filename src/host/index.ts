@@ -205,9 +205,15 @@ export function apply(ctx: Context, config: Partial<PluginConfig> = {}) {
   const fmtInt = (n: number | undefined): string =>
     typeof n === 'number' && Number.isFinite(n) ? n.toLocaleString('en-US') : '—'
 
+  /** 序列里最后一个「npm 已统计」的日期（补齐的 pending 点不算）。 */
+  const dataEndOf = (daily: Array<{ day: string; pending?: boolean }>): string => {
+    for (let i = daily.length - 1; i >= 0; i--) if (daily[i].pending !== true) return daily[i].day
+    return ''
+  }
+
   ctx.tools.register(defineTool({
     name: 'dsh_npm_info',
-    description: '查询一个 npm 包的完整信息：最新版本、描述、许可证、作者、链接、发布时间、版本总数与昨日/近7天/近30天/近一年下载量。Query full info of an npm package: latest version, description, license, author, links, publish times, and day/week/month/year download counts.',
+    description: '查询一个 npm 包的完整信息：最新版本、描述、许可证、作者、链接、发布时间、版本总数与最新单日/近7天/近30天/近一年下载量。Query full info of an npm package: latest version, description, license, author, links, publish times, and latest-day/week/month/year download counts.',
     parameters: {
       pkg: { type: 'string', required: true, description: 'npm 包名，如 vue 或 @vue/core（也接受 npmjs.com/package/... 链接）' },
     },
@@ -236,11 +242,17 @@ export function apply(ctx: Context, config: Partial<PluginConfig> = {}) {
       const modified = info.modified ? info.modified.slice(0, 10) : '—'
       const latestTime = info.latestDetail?.publishTime ? info.latestDetail.publishTime.slice(0, 19).replace('T', ' ') : '—'
       lines.push(`发布: 最新版 ${latestTime} · 首次发布 ${created} · 最近更新 ${modified} · 共 ${info.versionsCount ?? '—'} 个版本`)
-      lines.push(`下载量: 昨日 ${fmtInt(points.day?.downloads)} · 近7天 ${fmtInt(points.week?.downloads)} · 近30天 ${fmtInt(points.month?.downloads)} · 近一年 ${fmtInt(points.year?.downloads)}`)
-      const daily = (r.daily as Array<{ day: string; downloads: number }>) || []
+      const daily = (r.daily as Array<{ day: string; downloads: number; pending?: boolean }>) || []
+      const dataEnd = typeof r.dataEnd === 'string' ? r.dataEnd : ''
+      const lagDays = typeof r.lagDays === 'number' ? r.lagDays : 0
+      // 聚合值锚定最后一个真实数据日；标注日期，避免「昨日」被误读成今天的前一天。
+      lines.push(`下载量: 最新单日${dataEnd ? '(' + dataEnd + ')' : ''} ${fmtInt(points.day?.downloads)} · 近7天 ${fmtInt(points.week?.downloads)} · 近30天 ${fmtInt(points.month?.downloads)} · 近一年 ${fmtInt(points.year?.downloads)}`)
+      if (lagDays > 0) {
+        lines.push(`统计延迟: npm 尚未公布最后 ${lagDays} 天的下载量（数据截至 ${dataEnd}，日期区间已按 0 补齐以保持连续，不计入上方统计）`)
+      }
       if (daily.length > 0) {
-        const recent = daily.slice(-7).map((p) => `${p.day}=${fmtInt(p.downloads)}`).join(', ')
-        lines.push('近 7 天日下载量: ' + recent)
+        const recent = daily.filter((p) => p.pending !== true).slice(-7).map((p) => `${p.day}=${fmtInt(p.downloads)}`).join(', ')
+        if (recent.length > 0) lines.push('近 7 天日下载量: ' + recent)
       }
       if (info.maintainers && info.maintainers.length > 0) {
         lines.push('维护者: ' + info.maintainers.map((m) => m.name || m.email || '').filter(Boolean).join(', '))
@@ -270,11 +282,17 @@ export function apply(ctx: Context, config: Partial<PluginConfig> = {}) {
         const why = code === 'pkg-not-found' ? '未找到该 npm 包 / package not found' : (r.error || code)
         return '查询失败：' + why
       }
-      const daily = (r.downloads as Array<{ day: string; downloads: number }>) || []
+      const daily = (r.downloads as Array<{ day: string; downloads: number; pending?: boolean }>) || []
       if (daily.length === 0) return `包 ${String(r.pkg)} 在 ${String(r.start)} ~ ${String(r.end)} 区间内没有下载量数据。`
-      const total = daily.reduce((acc, p) => acc + p.downloads, 0)
-      const lines = daily.map((p) => `${p.day}: ${fmtInt(p.downloads)}`)
-      return `包 ${String(r.pkg)} 每日下载量（${String(r.start)} ~ ${String(r.end)}，共 ${daily.length} 天，合计 ${fmtInt(total)}）：\n` + lines.join('\n')
+      const real = daily.filter((p) => p.pending !== true)
+      const total = real.reduce((acc, p) => acc + p.downloads, 0)
+      const dataEnd = typeof r.dataEnd === 'string' ? r.dataEnd : ''
+      const lagDays = typeof r.lagDays === 'number' ? r.lagDays : 0
+      // 补齐日标注「暂无数据」：日期连续（不让人以为数据断了），但不并进合计。
+      const lines = daily.map((p) => `${p.day}: ${p.pending === true ? '0（npm 尚未统计）' : fmtInt(p.downloads)}`)
+      const head = `包 ${String(r.pkg)} 每日下载量（${String(r.start)} ~ ${String(r.end)}，共 ${daily.length} 天，合计 ${fmtInt(total)}）：`
+      const tail = lagDays > 0 ? `\n注：数据截至 ${dataEnd}，最后 ${lagDays} 天 npm 尚未统计（上面标为「尚未统计」的 0，仅为日期连续，不计入合计）。` : ''
+      return head + '\n' + lines.join('\n') + tail
     },
   }) as never)
 
@@ -296,9 +314,11 @@ export function apply(ctx: Context, config: Partial<PluginConfig> = {}) {
         const r = await runOp(deps, { op: 'watchList' })
         const watch = (r.watch as Array<Record<string, unknown>>) || []
         if (watch.length === 0) return '监控列表为空。可用 dsh_npm_watch(action="add", pkg="...") 添加。'
-        return '监控列表（' + watch.length + ' 个）：\n' + watch.map((w) =>
-          `- ${w.name}：latest ${String(w.lastVersion ?? '—')} · 昨日 ${fmtInt(w.lastDay as number | undefined)} · 近7天 ${fmtInt(w.lastWeek as number | undefined)}${w.hasNewVersion ? ' · ⚠️ 有新版本' : ''}`,
-        ).join('\n')
+        return '监控列表（' + watch.length + ' 个）：\n' + watch.map((w) => {
+          const daily = (Array.isArray(w.daily) ? w.daily : []) as Array<{ day: string; pending?: boolean }>
+          const dataEnd = dataEndOf(daily)
+          return `- ${w.name}：latest ${String(w.lastVersion ?? '—')} · 最新单日${dataEnd ? '(' + dataEnd + ')' : ''} ${fmtInt(w.lastDay as number | undefined)} · 近7天 ${fmtInt(w.lastWeek as number | undefined)}${w.hasNewVersion ? ' · ⚠️ 有新版本' : ''}`
+        }).join('\n')
       }
       if (action === 'add') {
         const r = await runOp(deps, { op: 'watchAdd', pkg: args.pkg })

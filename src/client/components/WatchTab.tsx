@@ -5,9 +5,9 @@
  *   控制侧栏 footerAction 入口按钮的显隐）+ 添加输入框 + 立即刷新 + 自动刷新
  *   间隔说明；
  * - 列表项：包名（点击进查询 tab 看详情）、latest 版本（就是普通版本号，不做任何
- *   「有新版本」标记/高亮）、昨日/近 7 天下载量（与上个快照对比的趋势箭头）、右侧
- *   近 7 天日安装量迷你柱状图（数据随刷新响应返回，无额外请求）、刷新失败原因、
- *   移除按钮；
+ *   「有新版本」标记/高亮）、最新单日/近 7 天下载量（与上个快照对比的趋势箭头）、
+ *   右侧近 7 天日安装量迷你柱状图（数据随刷新响应返回，无额外请求；尾部 npm
+ *   尚未统计的日期按 0 补齐并以灰色显示，保持日期连续）、刷新失败原因、移除按钮；
  * - 打开 tab 时静默清除新版本未读标记（入口已不展示任何更新提示；版本变化只在
  *   「历史」tab 的快照时间线里体现）。
  */
@@ -16,22 +16,30 @@ import { useEffect, useState, type ReactNode } from 'react'
 import type { RunFn } from '../rpc.ts'
 import type { Poller, WatchEntryView } from '../poller.ts'
 import { t, tErr } from '../i18n.ts'
-import { fmtCompact, fmtInt, fmtRel } from '../format.ts'
+import { fmtCompact, fmtInt, fmtRel, seriesOf } from '../format.ts'
 import { ShowInMenuToggle } from './ShowInMenuToggle.tsx'
 
-/** 迷你日安装量柱状图（近 7 天，随刷新更新；每根柱带原生 tooltip）。 */
+/** 迷你日安装量柱状图（近 7 天，随刷新更新；尾部未统计日灰色、每根柱带原生 tooltip）。 */
 function MiniTrend({ daily }: { daily?: WatchEntryView['daily'] }) {
-  const data = daily || []
+  const series = seriesOf(daily)
+  const data = series.all
   if (data.length === 0) return null
-  const max = Math.max(...data.map((p) => p.downloads), 1)
+  // 尺度只看真实数据段（pending 是延迟补的 0）。
+  const max = Math.max(...series.real.map((p) => p.downloads), 1)
+  const lastRealDay = series.dataEnd
+  const title = series.lagDays > 0
+    ? t('watchTrendLag', { end: lastRealDay || '—', n: series.lagDays })
+    : t('watchTrend')
   return (
-    <div className="dshn-trend" title={t('watchTrend')} aria-label={t('watchTrend')}>
-      {data.map((p, i) => (
+    <div className="dshn-trend" title={title} aria-label={title}>
+      {data.map((p) => (
         <span
           key={p.day}
-          className={'dshn-trend-bar' + (i === data.length - 1 ? ' dshn-trend-bar-last' : '')}
-          style={{ height: Math.max(10, Math.round((p.downloads / max) * 100)) + '%' }}
-          title={`${p.day} · ${fmtInt(p.downloads)}`}
+          className={'dshn-trend-bar'
+            + (p.pending === true ? ' dshn-trend-bar-pending' : '')
+            + (p.pending !== true && p.day === lastRealDay ? ' dshn-trend-bar-last' : '')}
+          style={{ height: p.pending === true ? '4%' : Math.max(10, Math.round((p.downloads / max) * 100)) + '%' }}
+          title={`${p.day} · ${p.pending === true ? t('noDataYet') : fmtInt(p.downloads)}`}
         />
       ))}
     </div>
@@ -108,13 +116,18 @@ export function WatchTab({ run, poller, onOpenDetail, refreshMinutes }: WatchTab
   }
 
   const dlText = (w: WatchEntryView): ReactNode => {
+    const series = seriesOf(w.daily)
     const dayDelta = w.prevDay !== undefined && w.lastDay !== undefined && w.prevDay > 0
       ? ((w.lastDay - w.prevDay) / w.prevDay) * 100
       : null
+    // 数据有延迟时不能写「昨日」：标签改成「最新单日」并补上真实日期。
+    const lagged = series.lagDays > 0 && series.dataEnd.length > 0
+    const dayLabel = lagged ? `${t('dlLatest')} ${series.dataEnd}` : t('dlDay')
     return (
       <>
-        <span>{t('dlDay')} {fmtCompact(w.lastDay)}{dayDelta !== null && Math.abs(dayDelta) >= 0.5 ? <span className={dayDelta >= 0 ? 'dshn-delta-up' : 'dshn-delta-down'}> ({dayDelta >= 0 ? '+' : ''}{dayDelta.toFixed(1)}%)</span> : null}</span>
+        <span>{dayLabel} {fmtCompact(w.lastDay)}{dayDelta !== null && Math.abs(dayDelta) >= 0.5 ? <span className={dayDelta >= 0 ? 'dshn-delta-up' : 'dshn-delta-down'}> ({dayDelta >= 0 ? '+' : ''}{dayDelta.toFixed(1)}%)</span> : null}</span>
         <span>{t('dlWeek')} {fmtCompact(w.lastWeek)}</span>
+        {lagged ? <span className="dshn-hint">{t('lagShort', { n: series.lagDays })}</span> : null}
       </>
     )
   }

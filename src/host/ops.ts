@@ -6,9 +6,11 @@
  *
  * 监控刷新策略（省请求）：
  * - 每个 watched 包两次轻量请求：dist-tags（几百字节）+ downloads range/last-week；
- * - 昨日 / 近 7 天下载量与监控列表迷你柱状图的日粒度序列都由 range 响应推导
+ * - 最新单日 / 近 7 天下载量与监控列表迷你柱状图的日粒度序列都由 range 响应推导
  *   （downloads 批量接口不支持 scoped 包，range 本就按包查询——scoped 包反而
  *   从 3 次请求/包降到 2 次/包）；
+ * - 下载量序列统一经 buildDailySeries 补齐到「昨天」（缺失日 0，尾部未统计日
+ *   0 + pending），聚合值只统计真实数据日，避免 npm 的 T+N 延迟把数字压低；
  * - dist-tags.latest 与本地记录不同 → 版本变更：置 hasNewVersion + 追加快照。
  */
 
@@ -23,6 +25,7 @@ import {
   searchPackages,
 } from './npm.ts'
 import { SNAPSHOTS_LIMIT } from './store.ts'
+import { buildDailySeries, lastRealDay, latestExpectedDay, realPoints, sumDownloads, type DailySeries } from '../shared/daily.ts'
 import type { DailyPoint, DownloadPoint, NpmStoreData, OpRequest, OpResult, PackageInfo, SearchItem, WatchEntry } from './types.ts'
 
 export interface OpsDeps {
@@ -54,21 +57,31 @@ function pushSnapshot(store: NpmStoreData, name: string, snap: { latest: string;
   store.snapshots[name] = list.slice(0, SNAPSHOTS_LIMIT)
 }
 
-/** 由 range/last-week 响应推导监控数据：昨日 = 最后一天，近 7 天 = 7 天合计，daily = 日粒度序列。 */
-function entryDataFromRange(range: { downloads: DailyPoint[] }): { day: number; week: number; daily: DailyPoint[] } {
-  const daily = range.downloads
-  const day = daily.length > 0 ? daily[daily.length - 1].downloads : 0
-  const week = daily.reduce((acc, p) => acc + p.downloads, 0)
-  return { day, week, daily }
+/** 由 range 响应推导监控数据：序列补齐到昨天，最新单日 / 近 7 天锚定最后一个真实数据日。 */
+function entryDataFromRange(
+  range: { downloads: DailyPoint[] },
+  targetEnd: string = latestExpectedDay(),
+): { day: number; week: number; daily: DailyPoint[] } {
+  const series = buildDailySeries(range.downloads, targetEnd)
+  const real = realPoints(series.daily)
+  const day = real.length > 0 ? real[real.length - 1].downloads : 0
+  const week = sumDownloads(real.slice(-7))
+  return { day, week, daily: series.daily as DailyPoint[] }
 }
 
 /* ── info：完整包信息 + 日粒度下载量 ───────────────────────────── */
 
 export interface InfoPayload {
   info: PackageInfo
+  /** 连续日粒度序列（正序；尾部未统计日补 0 且 pending=true）。 */
   daily: DailyPoint[]
+  /** 序列首日 / 末日（补齐后的日历区间，供「统计区间」展示）。 */
   rangeStart: string
   rangeEnd: string
+  /** 最后一个有数据的日期（'' = 无数据）—— 「最新单日」的日期。 */
+  dataEnd: string
+  /** npm 尚未统计的天数（rangeEnd 与 dataEnd 之间的距离）。 */
+  lagDays: number
   points: {
     day?: DownloadPoint
     week?: DownloadPoint
@@ -77,7 +90,7 @@ export interface InfoPayload {
   }
 }
 
-/** info op：registry 全量文档 + 下载量（昨/周/月/年 + 近 30 天日粒度）。 */
+/** info op：registry 全量文档 + 下载量（最新单日/周/月/年 + 近 30 天日粒度）。 */
 async function opInfo(deps: OpsDeps, rawPkg: string): Promise<InfoPayload> {
   const name = normalizePkgName(String(rawPkg || ''))
   if (!isValidPkgName(name)) throw new NpmError('pkg-name-invalid', 'invalid package name: ' + name)
@@ -89,18 +102,38 @@ async function opInfo(deps: OpsDeps, rawPkg: string): Promise<InfoPayload> {
     fetchPoint(d, name, 'last-year'),
   ])
   const info = doc.info
-  const daily = monthRange.downloads
-  // 周期汇总直接从日粒度数据推导（与 point 接口同窗），仅近一年单独请求。
-  const sumLast = (n: number): number => daily.slice(-n).reduce((acc, p) => acc + p.downloads, 0)
-  const points: InfoPayload['points'] = daily.length > 0
+  // 补齐到昨天：区间内漏报日补 0，尾部未统计日补 0 + pending（仅为图表连续）。
+  const series: DailySeries = buildDailySeries(monthRange.downloads, latestExpectedDay())
+  const daily = series.daily as DailyPoint[]
+  const real = realPoints(daily)
+  const dataEnd = lastRealDay(daily)
+  // 周期汇总只统计真实数据日（窗口截止到 dataEnd），npm 的统计延迟不会压低数字。
+  const weekWindow = real.slice(-7)
+  const points: InfoPayload['points'] = dataEnd.length > 0
     ? {
-      day: { downloads: daily[daily.length - 1].downloads, start: daily[daily.length - 1].day, end: daily[daily.length - 1].day },
-      week: { downloads: sumLast(7), start: daily[Math.max(0, daily.length - 7)].day, end: daily[daily.length - 1].day },
-      month: { downloads: sumLast(daily.length), start: monthRange.start, end: monthRange.end },
+      day: { downloads: real[real.length - 1].downloads, start: dataEnd, end: dataEnd },
+      week: {
+        downloads: sumDownloads(weekWindow),
+        start: weekWindow.length > 0 ? weekWindow[0].day : dataEnd,
+        end: dataEnd,
+      },
+      month: {
+        downloads: sumDownloads(real),
+        start: monthRange.start || real[0].day,
+        end: dataEnd,
+      },
       year: yearPoint,
     }
     : { year: yearPoint }
-  return { info, daily, rangeStart: monthRange.start, rangeEnd: monthRange.end, points }
+  return {
+    info,
+    daily,
+    rangeStart: daily.length > 0 ? daily[0].day : monthRange.start,
+    rangeEnd: daily.length > 0 ? daily[daily.length - 1].day : monthRange.end,
+    dataEnd,
+    lagDays: series.lagDays,
+    points,
+  }
 }
 
 /* ── search：输入联想 ──────────────────────────────────────────── */
@@ -127,7 +160,7 @@ async function opWatchAdd(deps: OpsDeps, rawPkg: string): Promise<{ watch: Watch
   // 验证包存在（dist-tags 极轻量），并取首次快照数据。
   const tags = await fetchDistTags(d, name)
   const latest = typeof tags.latest === 'string' ? tags.latest : ''
-  // 一次 range/last-week 同时得到昨日 / 近 7 天与日粒度序列（新包可能无数据：保持 0）。
+  // 一次 range/last-week 同时得到最新单日 / 近 7 天与日粒度序列（新包可能无数据：保持 0）。
   let day = 0
   let week = 0
   let daily: DailyPoint[] | undefined
@@ -192,9 +225,9 @@ async function opWatchRefresh(deps: OpsDeps, rawPkg?: string): Promise<{ watch: 
   const d = npmDeps(deps)
 
   // 并行：每个目标各一个 dist-tags 请求 + 一个 range/last-week 请求。
-  // 日粒度 7 点随 range 响应返回，昨日 / 近 7 天由它推导（point 批量接口
-  // 不支持 scoped 包，range 按包查询对两类包一视同仁）。请求失败静默降级：
-  // 该包保持上次的下载量数据，仅版本检查失败才标 error。
+  // 日粒度序列随 range 响应返回（尾部补齐到昨天），最新单日 / 近 7 天由它推导
+  // （point 批量接口不支持 scoped 包，range 按包查询对两类包一视同仁）。请求失败
+  // 静默降级：该包保持上次的下载量数据，仅版本检查失败才标 error。
   const [tagResults, rangeResults] = await Promise.all([
     Promise.all(targets.map(async (w) => {
       try { return { name: w.name, tags: await fetchDistTags(d, w.name), error: undefined as string | undefined } } catch (e) {
@@ -272,7 +305,20 @@ export async function runOp(deps: OpsDeps, req: OpRequest): Promise<OpResult> {
         if (!isValidPkgName(name)) throw new NpmError('pkg-name-invalid', 'invalid package name: ' + name)
         const range = req.range === 'last-week' ? 'last-week' : 'last-month'
         const payload = await fetchDailyRange(npmDeps(deps), name, range)
-        return { ok: true, pkg: name, range, ...payload }
+        // 同样补齐到昨天：区间内漏报日补 0，尾部未统计日补 0 + pending（连续性）。
+        const series = buildDailySeries(payload.downloads, latestExpectedDay())
+        const downloads = series.daily as DailyPoint[]
+        return {
+          ok: true,
+          pkg: name,
+          range,
+          start: series.dataStart || payload.start,
+          end: series.expectedEnd || payload.end,
+          downloads,
+          dataEnd: series.dataEnd,
+          lagDays: series.lagDays,
+          pendingDays: series.pendingDays,
+        }
       }
       case 'search': {
         const payload = await opSearch(deps, String(req.text || ''), typeof req.size === 'number' ? req.size : undefined)

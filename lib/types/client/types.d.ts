@@ -5,6 +5,8 @@
 export interface DailyPoint {
     day: string;
     downloads: number;
+    /** true = 该日 npm 尚未统计，值是按日历连续性补的 0（非真实 0 下载）。 */
+    pending?: boolean;
 }
 /** info op 返回的包完整信息。 */
 export interface PackageInfoView {
@@ -52,9 +54,15 @@ export interface InfoResponse {
     code?: string;
     error?: string;
     info?: PackageInfoView;
+    /** 连续日粒度序列（尾部未统计日补 0 且 pending=true）。 */
     daily?: DailyPoint[];
+    /** 序列首日 / 末日（补齐后的日历区间）。 */
     rangeStart?: string;
     rangeEnd?: string;
+    /** 最后一个有数据的日期（'' = 无数据）。 */
+    dataEnd?: string;
+    /** npm 尚未统计的天数（>0 = 「最新单日」不是昨天，需明确标注日期）。 */
+    lagDays?: number;
     points?: {
         day?: DownloadPointView;
         week?: DownloadPointView;

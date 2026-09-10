@@ -22,5 +22,6 @@
     "allowImportingTsExtensions": true,
     "rewriteRelativeImportExtensions": true
   },
-  "include": ["src/client/**/*"]
+  // 宿主 / 浏览器两边共用的纯逻辑（日历补齐等）也纳入本 program。
+  "include": ["src/client/**/*", "src/shared/**/*"]
 }

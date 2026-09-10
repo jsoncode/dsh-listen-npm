@@ -2,14 +2,20 @@
  * dsh-listen-npm —— 包详情视图（查询 tab 主体）。
  *
  * 布局：头部（名称/版本/许可证/操作）→ 描述与链接 → 下载量卡片（突出显示：
- * 昨日/近7天/近30天/近一年 + 每日安装量柱状图）→ 基本信息 → dist-tags →
+ * 最新单日/近7天/近30天/近一年 + 每日安装量柱状图）→ 基本信息 → dist-tags →
  * 版本列表（固定高度滚动）→ README 摘要（Markdown 渲染）。
+ *
+ * 下载量口径（对齐 npm 的 T+N 统计延迟）：
+ * - 序列由宿主补齐到昨天（缺失日 0，尾部待统计日 0 + pending），图表日期连续；
+ * - 聚合值与日期标签锚定最后一个「真实数据日」：只有当它就是昨天时才写「昨日」，
+ *   否则写「最新单日 + 日期」，并用一行说明标出尚未统计的日期区间（避免把延迟
+ *   读成插件 bug）。
  */
 
 import { useState } from 'react'
 import type { InfoResponse } from '../types.ts'
 import { t } from '../i18n.ts'
-import { fmtBytes, fmtCompact, fmtDate, fmtDateTime, fmtInt } from '../format.ts'
+import { fmtBytes, fmtCompact, fmtDate, fmtDateTime, fmtInt, seriesOf } from '../format.ts'
 import { DownloadChart } from './DownloadChart.tsx'
 import { Markdown } from './Markdown.tsx'
 
@@ -52,6 +58,15 @@ export function PackageDetail({ res, watched, onWatch, watchBusy, notice }: Pack
   }
   const p = res.points
   const daily = res.daily || []
+  // 序列在客户端幂等重算（补齐到昨天）：旧版宿主也能正确显示连续性。
+  const series = seriesOf(daily)
+  const lagDays = series.lagDays
+  const dataEnd = series.dataEnd
+  // 区间提示按补齐后的日历区间显示（与图表 x 轴一致，不受宿主版本影响）。
+  const rangeFrom = series.all.length > 0 ? series.all[0].day : (res.rangeStart || '—')
+  const rangeTo = series.expectedEnd || res.rangeEnd || '—'
+  // 「最新单日」== 昨天 时才能叫「昨日」；有延迟就写实际日期，别让人误读。
+  const dayLabel = lagDays > 0 ? t('dlLatest') : t('dlDay')
   const detail = info.latestDetail
   const versionRows = info.versions || []
 
@@ -83,21 +98,22 @@ export function PackageDetail({ res, watched, onWatch, watchBusy, notice }: Pack
         <div className="dshn-card-title">
           {t('downloadsTitle')}
           <span className="dshn-hint">
-            {t('rangeLabel')} {res.rangeStart || '—'} ~ {res.rangeEnd || '—'}
+            {t('rangeLabel')} {rangeFrom} ~ {rangeTo}
+            {lagDays > 0 ? ` · ${t('lagShort', { n: lagDays })}` : ''}
           </span>
         </div>
         <div className="dshn-stats">
           <div className="dshn-stat dshn-stat-hero">
-            <div className="dshn-stat-label">{t('dlDay')}</div>
+            <div className="dshn-stat-label">{dayLabel}</div>
             <div className="dshn-stat-value">{fmtInt(p?.day?.downloads)}</div>
-            <div className="dshn-stat-sub">{p?.day?.end || ''}</div>
+            <div className="dshn-stat-sub">{dataEnd || p?.day?.end || ''}</div>
           </div>
-          <div className="dshn-stat">
+          <div className="dshn-stat" title={p?.week ? `${p.week.start} ~ ${p.week.end}` : undefined}>
             <div className="dshn-stat-label">{t('dlWeek')}</div>
             <div className="dshn-stat-value">{fmtCompact(p?.week?.downloads)}</div>
             <div className="dshn-stat-sub">{fmtInt(p?.week?.downloads)}</div>
           </div>
-          <div className="dshn-stat">
+          <div className="dshn-stat" title={p?.month ? `${p.month.start} ~ ${p.month.end}` : undefined}>
             <div className="dshn-stat-label">{t('dlMonth')}</div>
             <div className="dshn-stat-value">{fmtCompact(p?.month?.downloads)}</div>
             <div className="dshn-stat-sub">{fmtInt(p?.month?.downloads)}</div>
@@ -108,11 +124,20 @@ export function PackageDetail({ res, watched, onWatch, watchBusy, notice }: Pack
             <div className="dshn-stat-sub">{fmtInt(p?.year?.downloads)}</div>
           </div>
         </div>
+        {/* 统计延迟说明：把「为什么末端是 0 / 为什么叫最新单日」讲清楚 */}
+        {lagDays > 0 ? (
+          <div className="dshn-note">
+            {t('lagNote', { end: dataEnd || '—', n: lagDays, from: series.pendingFrom || '', to: series.pendingTo || '' })}
+          </div>
+        ) : null}
         {/* 每日安装量柱状图 */}
         <div className="dshn-chart-wrap">
           <div className="dshn-card-title" style={{ marginBottom: 4 }}>
             {t('dailyChartTitle')}
-            <span className="dshn-hint">{daily.length > 0 ? `${daily[0].day} ~ ${daily[daily.length - 1].day}` : ''}</span>
+            <span className="dshn-hint">
+              {series.all.length > 0 ? `${series.all[0].day} ~ ${series.all[series.all.length - 1].day}` : ''}
+              {lagDays > 0 ? ` · ${t('chartPending')}` : ''}
+            </span>
           </div>
           <DownloadChart data={daily} />
         </div>

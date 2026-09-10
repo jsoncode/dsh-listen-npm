@@ -22,15 +22,15 @@ export interface WatchEntry {
   lastCheckAt?: number
   /** 最近一次刷新时的 latest 版本。 */
   lastVersion?: string
-  /** 最近一次刷新时的昨日下载量（npm 统计的最后一个自然日）。 */
+  /** 最近一次刷新时的「最新单日」下载量（npm 已统计的最后一个自然日）。 */
   lastDay?: number
-  /** 最近一次刷新时的近 7 天下载量。 */
+  /** 最近一次刷新时的近 7 天下载量（窗口截止到 lastDay 那天）。 */
   lastWeek?: number
-  /** 上上个快照的昨日下载量（供客户端画趋势箭头）。 */
+  /** 上上个快照的最新单日下载量（供客户端画趋势箭头）。 */
   prevDay?: number
   /** 上上个快照的近 7 天下载量。 */
   prevWeek?: number
-  /** 近 7 天日粒度下载量（随刷新更新，供监控列表迷你柱状图）。 */
+  /** 日粒度下载量（近 7 天窗口；尾部未统计的日期补 0 且 pending=true，保证连续性）。 */
   daily?: DailyPoint[]
   /** 版本变更未读标记：刷新发现新版本后置位，watchSeen 清除。 */
   hasNewVersion?: boolean
@@ -75,6 +75,8 @@ export type OpResult = { ok: boolean; code?: string; error?: string } & Record<s
 export interface DailyPoint {
   day: string
   downloads: number
+  /** true = 该日 npm 尚未统计，值是按日历连续性补的 0（非真实 0 下载）。 */
+  pending?: boolean
 }
 
 /** 单周期下载量汇总（api.npmjs.org/downloads/point）。 */
